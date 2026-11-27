@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -18,8 +17,9 @@
       --text-secondary: #8e8e93;
       --safe-top: env(safe-area-inset-top, 16px);
       --safe-bottom: env(safe-area-inset-bottom, 16px);
-      --vf-size: clamp(230px, min(calc(100vw - 24px), calc(100dvh - 245px)), 520px);
+      --vf-size: clamp(220px, min(calc(100vw - 24px), calc(100dvh - 245px)), 520px);
       --shell-max-w: min(100vw, 680px);
+      --sheet-max-w: min(100vw, 560px);
       --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
     }
 
@@ -707,8 +707,8 @@
     }
 
     .shutter-outer {
-      width: clamp(72px, 10dvh, 82px);
-      height: clamp(72px, 10dvh, 82px);
+      width: clamp(72px, 10dvh, 84px);
+      height: clamp(72px, 10dvh, 84px);
       border-radius: 50%;
       border: 4px solid var(--accent-gold);
       background-color: var(--bg-color);
@@ -748,7 +748,7 @@
 
     .preview-controls {
       width: 100%;
-      max-width: 320px;
+      max-width: 340px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -776,8 +776,8 @@
     }
 
     .send-main-btn {
-      width: clamp(72px, 10dvh, 82px);
-      height: clamp(72px, 10dvh, 82px);
+      width: clamp(72px, 10dvh, 84px);
+      height: clamp(72px, 10dvh, 84px);
       border-radius: 50%;
       background: #2c2c2e;
       border: none;
@@ -871,6 +871,7 @@
       z-index: 100;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: space-between;
       transform: translate3d(0, 100%, 0);
       will-change: transform;
@@ -881,6 +882,16 @@
     }
 
     .history-sheet.open { transform: translate3d(0, 0, 0); }
+
+    .history-sheet-inner {
+      width: 100%;
+      max-width: var(--shell-max-w);
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
 
     .sheet-drag-handle {
       width: 40px;
@@ -931,7 +942,7 @@
 
     .history-card {
       width: 100%;
-      max-width: 480px;
+      max-width: min(480px, calc(100dvh - 230px));
       height: 100%;
       min-height: 100%;
       flex-shrink: 0;
@@ -947,7 +958,8 @@
 
     .history-card-img-wrap {
       position: relative;
-      width: min(100%, calc(100dvh - 230px), 480px);
+      width: 100%;
+      max-width: min(100%, calc(100dvh - 245px), 480px);
       aspect-ratio: 1 / 1;
       border-radius: clamp(32px, 9%, 48px);
       overflow: hidden;
@@ -1040,6 +1052,7 @@
 
     .profile-grabber-wrap {
       width: 100%;
+      max-width: var(--sheet-max-w);
       display: flex;
       justify-content: center;
       padding: 6px 0 8px 0;
@@ -1063,7 +1076,7 @@
 
     .profile-scroll {
       width: 100%;
-      max-width: 560px;
+      max-width: var(--sheet-max-w);
       flex: 1;
       overflow-y: auto;
       scrollbar-width: none;
@@ -1362,8 +1375,8 @@
       left: 50%;
       bottom: 0;
       width: 100%;
-      max-width: 560px;
-      height: 92dvh;
+      max-width: var(--sheet-max-w);
+      height: min(92dvh, 780px);
       max-height: 92dvh;
       background: #171719;
       border-top-left-radius: 28px;
@@ -1439,7 +1452,7 @@
 
     .widget-guide-mockup-box {
       width: 264px;
-      height: clamp(260px, 42dvh, 360px);
+      height: clamp(240px, 40dvh, 360px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1519,7 +1532,7 @@
       align-items: center;
       text-align: center;
       gap: 8px;
-      max-width: 300px;
+      max-width: 320px;
     }
 
     .guide-step-title {
@@ -1529,7 +1542,7 @@
     }
 
     .guide-step-desc {
-      font-size: 16.5px;
+      font-size: 16px;
       font-weight: 600;
       color: rgba(235, 235, 240, 0.86);
       line-height: 1.35;
@@ -1720,7 +1733,7 @@
 
     .guide-confirm-dialog {
       width: 100%;
-      max-width: 320px;
+      max-width: 340px;
       background: #242426;
       border-radius: 22px;
       overflow: hidden;
@@ -1792,12 +1805,12 @@
 
     .location-sheet-card {
       width: 100%;
-      max-width: 560px;
+      max-width: var(--sheet-max-w);
       background: #1c1c1e;
       border-top-left-radius: 28px;
       border-top-right-radius: 28px;
       padding: 12px 18px calc(var(--safe-bottom) + 18px) 18px;
-      max-height: 72dvh;
+      max-height: min(72dvh, 620px);
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1856,6 +1869,9 @@
     }
 
     .location-result-item {
+      width: 100%;
+      text-align: left;
+      border: none;
       padding: 11px 14px;
       border-radius: 14px;
       background: #2c2c2e;
@@ -1895,7 +1911,7 @@
       z-index: 180;
       pointer-events: none;
       white-space: nowrap;
-      max-width: calc(100vw - 32px);
+      max-width: min(calc(100vw - 32px), 520px);
       overflow: hidden;
       text-overflow: ellipsis;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -1903,21 +1919,52 @@
 
     @media (max-height: 600px) {
       :root {
-        --vf-size: clamp(180px, min(calc(100vw - 24px), calc(100dvh - 195px)), 400px);
+        --vf-size: clamp(180px, min(calc(100vw - 24px), calc(100dvh - 185px)), 380px);
       }
       .bottom-section {
         gap: 8px;
       }
       .shutter-outer, .send-main-btn {
-        width: 64px;
-        height: 64px;
+        width: 62px;
+        height: 62px;
       }
     }
 
-    @media (min-width: 1024px) and (min-height: 760px) {
+    @media (min-width: 768px) and (min-height: 640px) {
       :root {
-        --vf-size: clamp(360px, min(42vw, calc(100dvh - 250px)), 560px);
-        --shell-max-w: 760px;
+        --vf-size: clamp(320px, min(46vw, calc(100dvh - 245px)), 540px);
+        --shell-max-w: min(92vw, 760px);
+        --sheet-max-w: min(92vw, 600px);
+      }
+    }
+
+    @media (min-width: 1280px) and (min-height: 760px) {
+      :root {
+        --vf-size: clamp(400px, min(42vw, calc(100dvh - 255px)), 600px);
+        --shell-max-w: min(90vw, 880px);
+        --sheet-max-w: min(90vw, 640px);
+      }
+    }
+
+    @media (min-width: 1920px) {
+      :root {
+        --vf-size: clamp(480px, min(38vw, calc(100dvh - 270px)), 680px);
+        --shell-max-w: min(85vw, 980px);
+        --sheet-max-w: min(85vw, 680px);
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      :root {
+        --vf-size: clamp(160px, calc(100dvh - 165px), 320px);
+      }
+      .bottom-section {
+        gap: 6px;
+        padding-bottom: 2px;
+      }
+      .shutter-outer, .send-main-btn {
+        width: 56px;
+        height: 56px;
       }
     }
 
@@ -2585,11 +2632,13 @@
   </div>
 
   <div class="history-sheet" role="dialog" aria-modal="true" aria-label="Lịch sử ảnh">
-    <div class="sheet-drag-handle" role="button" tabindex="0" aria-label="Đóng lịch sử"></div>
-    <div class="sheet-header"><div class="sheet-title">Lịch sử</div></div>
-    <div class="history-feed"><div class="empty-history">Chưa có ảnh nào được gửi</div></div>
-    <div class="history-footer-nav">
-      <button class="history-home-gold-btn" type="button" aria-label="Về màn hình chính"></button>
+    <div class="history-sheet-inner">
+      <div class="sheet-drag-handle" role="button" tabindex="0" aria-label="Đóng lịch sử"></div>
+      <div class="sheet-header"><div class="sheet-title">Lịch sử</div></div>
+      <div class="history-feed"><div class="empty-history">Chưa có ảnh nào được gửi</div></div>
+      <div class="history-footer-nav">
+        <button class="history-home-gold-btn" type="button" aria-label="Về màn hình chính"></button>
+      </div>
     </div>
   </div>
 
@@ -2607,6 +2656,7 @@
       const friendsPill = document.querySelector('.friends-pill');
       const cornerCircleBtn = document.querySelector('.corner-circle-btn');
       const profileSheet = document.querySelector('.profile-sheet');
+      const profileScroll = document.querySelector('.profile-scroll');
       const closeProfileBtn = document.querySelector('.close-profile-btn');
       const logoutBtn = document.querySelector('.logout-btn');
 
@@ -2726,6 +2776,30 @@
         '❤️ Tiện ích Crush',
         '⭐ Tiện ích Bạn bè'
       ];
+
+      function syncBackgroundScrollLock() {
+        const anyOverlayOpen =
+          profileSheet.classList.contains('open') ||
+          widgetGuideSheet.classList.contains('open') ||
+          !guideConfirmBackdrop.classList.contains('hidden') ||
+          !locationSheet.classList.contains('hidden') ||
+          historySheet.classList.contains('open');
+
+        document.documentElement.style.overflow = anyOverlayOpen ? 'hidden' : '';
+        document.body.style.overflow = anyOverlayOpen ? 'hidden' : '';
+
+        if (widgetGuideSheet.classList.contains('open') || !guideConfirmBackdrop.classList.contains('hidden')) {
+          profileScroll.style.overflowY = 'hidden';
+        } else {
+          profileScroll.style.overflowY = '';
+        }
+
+        if (!locationSheet.classList.contains('hidden')) {
+          historyFeed.style.overflowY = 'hidden';
+        } else {
+          historyFeed.style.overflowY = '';
+        }
+      }
 
       function triggerHapticFeedback(intensity = 1.0) {
         const nowMs = performance.now();
@@ -3084,10 +3158,10 @@
             const title = item.name;
             const region = [item.admin2, item.admin1, item.country].filter(Boolean).join(', ');
             return `
-              <div class="location-result-item" data-idx="${idx}">
+              <button class="location-result-item" type="button" data-idx="${idx}">
                 <span>${escapeHtml(title)}</span>
                 <span class="location-result-sub">${escapeHtml(region)}</span>
-              </div>
+              </button>
             `;
           }).join('');
 
@@ -3118,6 +3192,7 @@
         locationResultsList.innerHTML = '';
         locationSheet.classList.remove('hidden');
         locationSheetInput.value = '';
+        syncBackgroundScrollLock();
         requestAnimationFrame(() => locationSheetInput.focus());
       }
 
@@ -3128,6 +3203,7 @@
           activePlaceSearchController = null;
         }
         locationSheet.classList.add('hidden');
+        syncBackgroundScrollLock();
       }
 
       function triggerResetAnimation() {
@@ -3620,12 +3696,14 @@
         profileSheet.style.transform = 'translate3d(0, 0, 0)';
         profileSheet.classList.add('open');
         syncProfileExpandedState();
+        syncBackgroundScrollLock();
       }
 
       function closeProfileSheet() {
         profileSheet.style.transform = 'translate3d(100%, 0, 0)';
         profileSheet.classList.remove('open');
         syncProfileExpandedState();
+        syncBackgroundScrollLock();
       }
 
       profileBtn.addEventListener('click', openProfileSheet);
@@ -3653,6 +3731,7 @@
         updatePreviewWidgetSubtitle(0);
         widgetGuideBackdrop.classList.add('open');
         widgetGuideSheet.classList.add('open');
+        syncBackgroundScrollLock();
         requestAnimationFrame(() => {
           widgetGuideTrack.scrollLeft = 0;
           if (guideWidgetPreviewTrack) guideWidgetPreviewTrack.scrollLeft = 0;
@@ -3663,6 +3742,7 @@
         guideConfirmBackdrop.classList.add('hidden');
         widgetGuideSheet.classList.remove('open');
         widgetGuideBackdrop.classList.remove('open');
+        syncBackgroundScrollLock();
       }
 
       openWidgetGuideBtns.forEach((btn) => {
@@ -3711,10 +3791,12 @@
       widgetGuideCta.addEventListener('click', () => {
         triggerHapticFeedback(0.85);
         guideConfirmBackdrop.classList.remove('hidden');
+        syncBackgroundScrollLock();
       });
 
       guideConfirmCancel.addEventListener('click', () => {
         guideConfirmBackdrop.classList.add('hidden');
+        syncBackgroundScrollLock();
       });
 
       guideConfirmSkip.addEventListener('click', () => {
@@ -3726,6 +3808,7 @@
       guideConfirmBackdrop.addEventListener('click', (e) => {
         if (e.target === guideConfirmBackdrop) {
           guideConfirmBackdrop.classList.add('hidden');
+          syncBackgroundScrollLock();
         }
       });
 
@@ -3992,11 +4075,13 @@
         historyFeed.scrollTop = 0;
         historySheet.style.transform = 'translate3d(0, 0, 0)';
         historySheet.classList.add('open');
+        syncBackgroundScrollLock();
       }
 
       function closeHistorySheet() {
         historySheet.style.transform = 'translate3d(0, 100%, 0)';
         historySheet.classList.remove('open');
+        syncBackgroundScrollLock();
       }
 
       historyTrigger.addEventListener('click', openHistorySheet);
@@ -4009,6 +4094,7 @@
         if (e.key !== 'Escape') return;
         if (!guideConfirmBackdrop.classList.contains('hidden')) {
           guideConfirmBackdrop.classList.add('hidden');
+          syncBackgroundScrollLock();
         } else if (widgetGuideSheet.classList.contains('open')) {
           closeWidgetGuideSheet();
         } else if (!locationSheet.classList.contains('hidden')) {
@@ -4102,4 +4188,3 @@
   </script>
 </body>
 </html>
-
