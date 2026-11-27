@@ -1,3 +1,9 @@
+Mình đã tối ưu toàn diện ứng dụng theo nhiều nhóm lớn để giữ sự liền mạch khi sử dụng trên cả di động lẫn máy tính, đồng thời hoàn thiện bản mã cuối cùng để bạn copy một lần dùng ngay.
+Các nhóm tối ưu chính
+ * Kiến trúc CSS & Tương tác Mobile/Desktop: Chuẩn hóa biến giao diện, chống chọn chữ/nhấn giữ không mong muốn ngoài ô nhập liệu, tối ưu khung ngắm vuông (1:1), vùng chạm (touch-action), độ mượt của sheet lịch sử, trang cá nhân và hướng dẫn tiện ích.
+ * Luồng Camera, Preview & Xuất ảnh: Giữ getUserMedia sạch sẽ (tự dừng khi ẩn tab, đổi camera trước/sau, zoom 1x/5x, flash/torch), chuẩn hóa ảnh vuông 768x768, vẽ lớp phủ lên <canvas> khi tải ảnh xuống và lưu lịch sử vào localStorage an toàn.
+ * Hệ thống Overlay & Dữ liệu thực tế: Đồng bộ kích thước co giãn cho tin nhắn, đánh giá sao nửa bước (0.5–5.0) kèm ghi chú, ô nhạc, đồng hồ thực, vị trí GPS/tìm kiếm qua Open-Meteo Geocoding và thời tiết qua Open-Meteo Forecast (có chống gọi trùng request và dọn timer).
+ * Trạng thái, Accessibility & Dọn dẹp tài nguyên: Bổ sung trạng thái aria-pressed / aria-selected cho các nút chuyển trạng thái, khóa cuộn nền khi mở sheet/modal, hỗ trợ phím Escape để đóng lớp phủ nhanh và giải phóng tài nguyên khi rời trang.
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -19,9 +25,10 @@
       --safe-bottom: env(safe-area-inset-bottom, 16px);
       --vf-size: clamp(230px, min(calc(100vw - 24px), calc(100dvh - 245px)), 520px);
       --shell-max-w: min(100vw, 680px);
+      --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    * {
+    *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -34,6 +41,7 @@
     input, textarea {
       user-select: text;
       -webkit-user-select: text;
+      -webkit-touch-callout: default;
     }
 
     html, body {
@@ -42,12 +50,24 @@
       height: 100dvh;
       background-color: var(--bg-color);
       color: var(--text-primary);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
       overscroll-behavior: none;
       display: flex;
       justify-content: center;
       align-items: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid rgba(255, 184, 0, 0.75);
+      outline-offset: 2px;
     }
 
     .app-shell {
@@ -91,6 +111,12 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      transition: transform 0.14s var(--ease-out-expo), background-color 0.14s ease;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: var(--surface-elevated);
     }
 
     .corner-circle-btn {
@@ -104,7 +130,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+      transition: transform 0.14s var(--ease-out-expo), background-color 0.14s ease, border-color 0.14s ease;
     }
 
     .corner-circle-btn:active {
@@ -129,6 +155,12 @@
       border: none;
       color: var(--text-primary);
       cursor: pointer;
+      transition: transform 0.14s var(--ease-out-expo), background-color 0.14s ease;
+    }
+
+    .friends-pill:active {
+      transform: scale(0.95);
+      background: var(--surface-elevated);
     }
 
     .header-title {
@@ -206,6 +238,11 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      transition: transform 0.14s var(--ease-out-expo), background-color 0.14s ease, color 0.14s ease;
+    }
+
+    .vf-badge:active {
+      transform: scale(0.9);
     }
 
     .vf-badge.active {
@@ -232,6 +269,7 @@
       width: 100%;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
     }
 
     .overlay-track::-webkit-scrollbar {
@@ -241,6 +279,7 @@
     .overlay-slide {
       flex: 0 0 100%;
       scroll-snap-align: center;
+      scroll-snap-stop: always;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -311,6 +350,12 @@
       gap: 7px;
       border: 1px solid rgba(255, 255, 255, 0.12);
       cursor: pointer;
+      transition: transform 0.14s var(--ease-out-expo), background-color 0.14s ease;
+    }
+
+    .widget-pill:active {
+      transform: scale(0.95);
+      background: rgba(48, 48, 52, 0.9);
     }
 
     .widget-pill.weather-pill {
@@ -353,7 +398,7 @@
       width: fit-content;
       max-width: 82%;
       border: 1px solid rgba(255, 255, 255, 0.14);
-      transition: padding 0.2s cubic-bezier(0.22, 1, 0.36, 1), gap 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: padding 0.2s var(--ease-out-expo), gap 0.2s var(--ease-out-expo), border-radius 0.2s var(--ease-out-expo);
     }
 
     .rating-combined-pill.no-note {
@@ -380,7 +425,7 @@
       color: rgba(255, 255, 255, 0.25);
       pointer-events: none;
       will-change: transform;
-      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.16s var(--ease-out-expo);
     }
 
     .star-slot.active-step {
@@ -399,14 +444,14 @@
       white-space: nowrap;
       width: 0%;
       will-change: width;
-      transition: width 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: width 0.14s var(--ease-out-expo);
     }
 
     .rating-note-row {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0px;
+      gap: 0;
       max-width: 100%;
       opacity: 1;
       visibility: visible;
@@ -427,7 +472,7 @@
       line-height: 1;
       flex-shrink: 0;
       pointer-events: none;
-      transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.14s var(--ease-out-expo);
     }
 
     .rating-quote-mark.open {
@@ -494,7 +539,7 @@
       gap: 7px;
       border: 1px solid rgba(255, 255, 255, 0.12);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.25s var(--ease-out-expo);
       cursor: pointer;
     }
 
@@ -591,7 +636,7 @@
       flex-shrink: 0;
       background-color: var(--swatch-color);
       opacity: 1;
-      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.16s ease;
+      transition: transform 0.16s var(--ease-out-expo), box-shadow 0.16s ease;
     }
 
     .palette-swatch:active {
@@ -653,7 +698,7 @@
       justify-content: center;
       cursor: pointer;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), opacity 0.12s ease;
     }
 
     .side-action-btn:active {
@@ -679,7 +724,7 @@
       cursor: pointer;
       touch-action: none;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.12s var(--ease-out-expo);
     }
 
     .shutter-inner {
@@ -689,7 +734,7 @@
       background: #ffffff;
       pointer-events: none;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), background-color 0.12s ease;
     }
 
     .shutter-outer.pressing {
@@ -727,7 +772,7 @@
       justify-content: center;
       cursor: pointer;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), opacity 0.12s ease;
     }
 
     .cancel-btn:active {
@@ -747,7 +792,7 @@
       justify-content: center;
       cursor: pointer;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), background-color 0.12s ease;
     }
 
     .send-main-btn:active {
@@ -767,7 +812,7 @@
       justify-content: center;
       cursor: pointer;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), opacity 0.12s ease;
     }
 
     .aa-btn:active {
@@ -779,8 +824,17 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      background: transparent;
+      border: none;
       cursor: pointer;
       padding: 6px 14px;
+      border-radius: 999px;
+      transition: transform 0.12s var(--ease-out-expo), opacity 0.12s ease;
+    }
+
+    .history-trigger:active {
+      transform: scale(0.96);
+      opacity: 0.8;
     }
 
     .history-trigger-row {
@@ -825,7 +879,7 @@
       justify-content: space-between;
       transform: translate3d(0, 100%, 0);
       will-change: transform;
-      transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.26s var(--ease-out-expo);
       padding-top: calc(var(--safe-top) + 10px);
       padding-bottom: calc(var(--safe-bottom) + 16px);
       touch-action: none;
@@ -862,6 +916,7 @@
       scrollbar-width: none;
       touch-action: pan-y;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
       padding: 0 16px;
       display: flex;
       flex-direction: column;
@@ -961,7 +1016,7 @@
       border: 4px solid rgba(255, 255, 255, 0.25);
       cursor: pointer;
       will-change: transform;
-      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
+      transition: transform 0.12s var(--ease-out-expo), opacity 0.12s ease;
     }
 
     .history-home-gold-btn:active {
@@ -980,7 +1035,8 @@
       padding-top: calc(var(--safe-top) + 4px);
       padding-bottom: calc(var(--safe-bottom) + 18px);
       transform: translate3d(100%, 0, 0);
-      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+      transition: transform 0.24s var(--ease-out-expo);
     }
 
     .profile-sheet.open {
@@ -1016,6 +1072,8 @@
       flex: 1;
       overflow-y: auto;
       scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
       padding: 6px 16px 32px 16px;
       display: flex;
       flex-direction: column;
@@ -1323,7 +1381,7 @@
       padding-bottom: calc(var(--safe-bottom) + 16px);
       transform: translate3d(-50%, 100%, 0);
       will-change: transform;
-      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.34s var(--ease-out-expo);
       box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.68);
     }
 
@@ -1355,6 +1413,7 @@
       scroll-behavior: smooth;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
     }
 
     .widget-guide-track::-webkit-scrollbar {
@@ -1524,6 +1583,7 @@
       scroll-behavior: smooth;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
       gap: 8px;
     }
 
@@ -1793,6 +1853,8 @@
 
     .location-results-list {
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -1809,6 +1871,11 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      transition: background-color 0.12s ease;
+    }
+
+    .location-result-item:active {
+      background: #3a3a3c;
     }
 
     .location-result-sub {
@@ -1822,15 +1889,21 @@
       left: 50%;
       transform: translateX(-50%);
       background: rgba(35, 35, 38, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       color: #fff;
       border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 999px;
       padding: 8px 16px;
       font-size: 13px;
       font-weight: 600;
-      z-index: 160;
+      z-index: 180;
       pointer-events: none;
       white-space: nowrap;
+      max-width: calc(100vw - 32px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     }
 
     @media (max-height: 600px) {
@@ -1853,15 +1926,23 @@
       }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="toast-banner hidden"></div>
+  <div class="toast-banner hidden" role="status" aria-live="polite"></div>
 
   <div class="app-shell">
     <div class="header camera-header">
-      <button class="icon-btn profile-btn" type="button" aria-label="Profile">
+      <button class="icon-btn profile-btn" type="button" aria-label="Hồ sơ cá nhân">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
@@ -1871,12 +1952,12 @@
         <span>Bạn bè</span>
       </button>
       <div class="header-right-group">
-        <button class="icon-btn open-history-top" type="button" aria-label="Messages">
+        <button class="icon-btn open-history-top" type="button" aria-label="Lịch sử ảnh">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
           </svg>
         </button>
-        <button class="corner-circle-btn" type="button" aria-label="Nút tròn góc phải">
+        <button class="corner-circle-btn" type="button" aria-label="Mở hồ sơ" aria-expanded="false">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="7"></circle>
           </svg>
@@ -1900,16 +1981,16 @@
       <div class="viewfinder-column">
         <div class="viewfinder">
           <video class="camera-video mirror" autoplay playsinline muted></video>
-          <img class="preview-img hidden" alt="Preview" />
+          <img class="preview-img hidden" alt="Xem trước ảnh" />
           <canvas class="preview-canvas hidden"></canvas>
 
           <div class="vf-top-controls camera-vf-controls">
-            <button class="vf-badge flash-btn" type="button" aria-label="Flash">
+            <button class="vf-badge flash-btn" type="button" aria-label="Đèn flash" aria-pressed="false">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
             </button>
-            <button class="vf-badge zoom-btn" type="button">1x</button>
+            <button class="vf-badge zoom-btn" type="button" aria-label="Thu phóng">1x</button>
           </div>
 
           <div class="overlay-carousel-container preview-overlays hidden">
@@ -1925,11 +2006,11 @@
 
               <div class="overlay-slide" data-index="1">
                 <div class="palette-pill" role="group" aria-label="Bảng màu">
-                  <button class="palette-swatch" type="button" data-color="#8c7333" data-label="Vàng olive" style="--swatch-color: #8c7333;" aria-label="Vàng olive"></button>
-                  <button class="palette-swatch" type="button" data-color="#d6cfc2" data-label="Trắng kem" style="--swatch-color: #d6cfc2;" aria-label="Trắng kem"></button>
-                  <button class="palette-swatch" type="button" data-color="#2e3130" data-label="Xám than" style="--swatch-color: #2e3130;" aria-label="Xám than"></button>
-                  <button class="palette-swatch" type="button" data-color="#565958" data-label="Xám trung tính" style="--swatch-color: #565958;" aria-label="Xám trung tính"></button>
-                  <button class="palette-swatch" type="button" data-color="#9ca19f" data-label="Trắng xám" style="--swatch-color: #9ca19f;" aria-label="Trắng xám"></button>
+                  <button class="palette-swatch" type="button" data-color="#8c7333" data-label="Vàng olive" style="--swatch-color: #8c7333;" aria-label="Vàng olive" aria-pressed="false"></button>
+                  <button class="palette-swatch" type="button" data-color="#d6cfc2" data-label="Trắng kem" style="--swatch-color: #d6cfc2;" aria-label="Trắng kem" aria-pressed="false"></button>
+                  <button class="palette-swatch" type="button" data-color="#2e3130" data-label="Xám than" style="--swatch-color: #2e3130;" aria-label="Xám than" aria-pressed="false"></button>
+                  <button class="palette-swatch" type="button" data-color="#565958" data-label="Xám trung tính" style="--swatch-color: #565958;" aria-label="Xám trung tính" aria-pressed="false"></button>
+                  <button class="palette-swatch" type="button" data-color="#9ca19f" data-label="Trắng xám" style="--swatch-color: #9ca19f;" aria-label="Trắng xám" aria-pressed="false"></button>
                 </div>
               </div>
 
@@ -1969,7 +2050,7 @@
               </div>
 
               <div class="overlay-slide" data-index="4">
-                <div class="widget-pill weather-pill widget-weather">
+                <button class="widget-pill weather-pill widget-weather" type="button" aria-label="Cập nhật thời tiết">
                   <span class="weather-spinner hidden"></span>
                   <span class="weather-icon">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1977,7 +2058,7 @@
                     </svg>
                   </span>
                   <span class="weather-text">--°C</span>
-                </div>
+                </button>
               </div>
 
               <div class="overlay-slide" data-index="5">
@@ -1991,27 +2072,27 @@
               </div>
 
               <div class="overlay-slide" data-index="6">
-                <div class="widget-pill widget-location">
+                <button class="widget-pill widget-location" type="button" aria-label="Chọn vị trí">
                   <span class="pin-gray" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                     </svg>
                   </span>
                   <span class="location-text">Thêm vị trí</span>
-                </div>
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="carousel-dots hidden">
-          <span class="dot active" data-dot="0"></span>
-          <span class="dot" data-dot="1"></span>
-          <span class="dot" data-dot="2"></span>
-          <span class="dot" data-dot="3"></span>
-          <span class="dot" data-dot="4"></span>
-          <span class="dot" data-dot="5"></span>
-          <span class="dot" data-dot="6"></span>
+        <div class="carousel-dots hidden" role="tablist" aria-label="Chọn nhãn dán">
+          <span class="dot active" data-dot="0" role="tab" aria-selected="true"></span>
+          <span class="dot" data-dot="1" role="tab" aria-selected="false"></span>
+          <span class="dot" data-dot="2" role="tab" aria-selected="false"></span>
+          <span class="dot" data-dot="3" role="tab" aria-selected="false"></span>
+          <span class="dot" data-dot="4" role="tab" aria-selected="false"></span>
+          <span class="dot" data-dot="5" role="tab" aria-selected="false"></span>
+          <span class="dot" data-dot="6" role="tab" aria-selected="false"></span>
         </div>
       </div>
     </div>
@@ -2041,7 +2122,7 @@
         </button>
       </div>
 
-      <div class="history-trigger">
+      <button class="history-trigger" type="button" aria-label="Mở lịch sử ảnh">
         <div class="history-trigger-row">
           <div class="history-thumb-preview history-thumb">0</div>
           <span>Lịch sử</span>
@@ -2049,7 +2130,7 @@
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
-      </div>
+      </button>
     </div>
 
     <div class="bottom-section preview-bottom hidden">
@@ -2077,8 +2158,8 @@
     </div>
   </div>
 
-  <div class="profile-sheet">
-    <div class="profile-grabber-wrap close-profile-btn">
+  <div class="profile-sheet" role="dialog" aria-modal="true" aria-label="Hồ sơ cá nhân">
+    <div class="profile-grabber-wrap close-profile-btn" role="button" tabindex="0" aria-label="Đóng hồ sơ">
       <div class="profile-grabber"></div>
     </div>
 
@@ -2335,7 +2416,7 @@
 
   <div class="widget-guide-backdrop"></div>
   <div class="widget-guide-sheet" role="dialog" aria-modal="true" aria-label="Tạo một Locket mới">
-    <div class="widget-guide-grabber-wrap close-widget-guide-btn">
+    <div class="widget-guide-grabber-wrap close-widget-guide-btn" role="button" tabindex="0" aria-label="Đóng hướng dẫn tiện ích">
       <div class="widget-guide-grabber"></div>
     </div>
 
@@ -2484,9 +2565,9 @@
   </div>
 
   <div class="guide-confirm-backdrop hidden">
-    <div class="guide-confirm-dialog" role="alertdialog" aria-modal="true">
+    <div class="guide-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="guideConfirmTitle">
       <div class="guide-confirm-body">
-        <div class="guide-confirm-title">Bạn đã thêm tiện ích này vào Màn hình chính của mình chưa?</div>
+        <div class="guide-confirm-title" id="guideConfirmTitle">Bạn đã thêm tiện ích này vào Màn hình chính của mình chưa?</div>
         <div class="guide-confirm-desc">Locket không hoạt động trừ khi bạn thêm tiện ích vào màn hình chính của mình.</div>
       </div>
       <div class="guide-confirm-actions">
@@ -2496,9 +2577,9 @@
     </div>
   </div>
 
-  <div class="location-sheet hidden">
+  <div class="location-sheet hidden" role="dialog" aria-modal="true" aria-label="Tìm địa điểm">
     <div class="location-sheet-card">
-      <div class="sheet-drag-handle"></div>
+      <div class="sheet-drag-handle" role="button" tabindex="0" aria-label="Đóng chọn vị trí"></div>
       <div class="location-sheet-top">
         <input class="location-sheet-input" type="text" placeholder="Tìm địa điểm..." />
         <button class="location-sheet-close" type="button">Đóng</button>
@@ -2508,8 +2589,8 @@
     </div>
   </div>
 
-  <div class="history-sheet">
-    <div class="sheet-drag-handle"></div>
+  <div class="history-sheet" role="dialog" aria-modal="true" aria-label="Lịch sử ảnh">
+    <div class="sheet-drag-handle" role="button" tabindex="0" aria-label="Đóng lịch sử"></div>
     <div class="sheet-header"><div class="sheet-title">Lịch sử</div></div>
     <div class="history-feed"><div class="empty-history">Chưa có ảnh nào được gửi</div></div>
     <div class="history-footer-nav">
@@ -2518,769 +2599,808 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'locket_user_photos_v4';
-    const OUTPUT_SIZE = 768;
-    const JPEG_QUALITY = 0.76;
-    const TOTAL_SLIDES = 7;
-    const TOTAL_GUIDE_STEPS = 4;
-    const DEFAULT_WEATHER_TEXT = '--°C';
+    (() => {
+      const STORAGE_KEY = 'locket_user_photos_v4';
+      const OUTPUT_SIZE = 768;
+      const JPEG_QUALITY = 0.76;
+      const TOTAL_SLIDES = 7;
+      const TOTAL_GUIDE_STEPS = 4;
+      const DEFAULT_WEATHER_TEXT = '--°C';
 
-    const toastBanner = document.querySelector('.toast-banner');
-    const profileBtn = document.querySelector('.profile-btn');
-    const friendsPill = document.querySelector('.friends-pill');
-    const cornerCircleBtn = document.querySelector('.corner-circle-btn');
-    const profileSheet = document.querySelector('.profile-sheet');
-    const closeProfileBtn = document.querySelector('.close-profile-btn');
-    const logoutBtn = document.querySelector('.logout-btn');
+      const toastBanner = document.querySelector('.toast-banner');
+      const profileBtn = document.querySelector('.profile-btn');
+      const friendsPill = document.querySelector('.friends-pill');
+      const cornerCircleBtn = document.querySelector('.corner-circle-btn');
+      const profileSheet = document.querySelector('.profile-sheet');
+      const closeProfileBtn = document.querySelector('.close-profile-btn');
+      const logoutBtn = document.querySelector('.logout-btn');
 
-    const openWidgetGuideBtns = document.querySelectorAll('.open-widget-guide-btn');
-    const widgetGuideBackdrop = document.querySelector('.widget-guide-backdrop');
-    const widgetGuideSheet = document.querySelector('.widget-guide-sheet');
-    const closeWidgetGuideBtn = document.querySelector('.close-widget-guide-btn');
-    const widgetGuideTrack = document.querySelector('.widget-guide-track');
-    const guideDots = document.querySelectorAll('.widget-guide-dots .guide-dot');
-    const widgetGuideCta = document.querySelector('.widget-guide-cta');
-    const guideWidgetPreviewTrack = document.querySelector('.guide-widget-preview-track');
-    const guideWidgetSubtitle = document.querySelector('.guide-widget-subtitle');
-    const guideAddWidgetBtn = document.querySelector('.guide-add-widget-btn');
-    const guideConfirmBackdrop = document.querySelector('.guide-confirm-backdrop');
-    const guideConfirmCancel = document.querySelector('.guide-confirm-btn.cancel');
-    const guideConfirmSkip = document.querySelector('.guide-confirm-btn.skip');
+      const openWidgetGuideBtns = document.querySelectorAll('.open-widget-guide-btn');
+      const widgetGuideBackdrop = document.querySelector('.widget-guide-backdrop');
+      const widgetGuideSheet = document.querySelector('.widget-guide-sheet');
+      const closeWidgetGuideBtn = document.querySelector('.close-widget-guide-btn');
+      const widgetGuideTrack = document.querySelector('.widget-guide-track');
+      const guideDots = document.querySelectorAll('.widget-guide-dots .guide-dot');
+      const widgetGuideCta = document.querySelector('.widget-guide-cta');
+      const guideWidgetPreviewTrack = document.querySelector('.guide-widget-preview-track');
+      const guideWidgetSubtitle = document.querySelector('.guide-widget-subtitle');
+      const guideAddWidgetBtn = document.querySelector('.guide-add-widget-btn');
+      const guideConfirmBackdrop = document.querySelector('.guide-confirm-backdrop');
+      const guideConfirmCancel = document.querySelector('.guide-confirm-btn.cancel');
+      const guideConfirmSkip = document.querySelector('.guide-confirm-btn.skip');
 
-    const cameraHeader = document.querySelector('.camera-header');
-    const previewHeader = document.querySelector('.preview-header');
-    const downloadBtn = document.querySelector('.download-btn');
-    const openHistoryTopBtn = document.querySelector('.open-history-top');
+      const cameraHeader = document.querySelector('.camera-header');
+      const previewHeader = document.querySelector('.preview-header');
+      const downloadBtn = document.querySelector('.download-btn');
+      const openHistoryTopBtn = document.querySelector('.open-history-top');
 
-    const cameraVideo = document.querySelector('.camera-video');
-    const previewImg = document.querySelector('.preview-img');
-    const previewCanvas = document.querySelector('.preview-canvas');
-    const cameraVfControls = document.querySelector('.camera-vf-controls');
-    const flashBtn = document.querySelector('.flash-btn');
-    const zoomBtn = document.querySelector('.zoom-btn');
+      const cameraVideo = document.querySelector('.camera-video');
+      const previewImg = document.querySelector('.preview-img');
+      const previewCanvas = document.querySelector('.preview-canvas');
+      const cameraVfControls = document.querySelector('.camera-vf-controls');
+      const flashBtn = document.querySelector('.flash-btn');
+      const zoomBtn = document.querySelector('.zoom-btn');
 
-    const previewOverlays = document.querySelector('.preview-overlays');
-    const overlayTrack = document.querySelector('.overlay-track');
-    const dots = document.querySelectorAll('.carousel-dots .dot');
-    const carouselDots = document.querySelector('.carousel-dots');
+      const previewOverlays = document.querySelector('.preview-overlays');
+      const overlayTrack = document.querySelector('.overlay-track');
+      const dots = document.querySelectorAll('.carousel-dots .dot');
+      const carouselDots = document.querySelector('.carousel-dots');
 
-    const captionInput = document.querySelector('.caption-input');
-    const captionGhost = document.querySelector('.caption-ghost');
-    const widgetWeather = document.querySelector('.widget-weather');
-    const weatherSpinner = document.querySelector('.weather-spinner');
-    const weatherIconEl = document.querySelector('.weather-icon');
-    const weatherTextEl = document.querySelector('.weather-text');
-    const timeTextEl = document.querySelector('.time-text');
-    const ratingPill = document.querySelector('.rating-combined-pill');
-    const starsBar = document.querySelector('.stars-bar');
-    const starSlots = document.querySelectorAll('.stars-bar .star-slot');
-    const ratingNoteRow = document.querySelector('.rating-note-row');
-    const ratingInputGhost = document.querySelector('.rating-input-ghost');
-    const ratingInput = document.querySelector('.rating-input');
-    const widgetLocation = document.querySelector('.widget-location');
-    const locationTextEl = document.querySelector('.location-text');
+      const captionInput = document.querySelector('.caption-input');
+      const captionGhost = document.querySelector('.caption-ghost');
+      const widgetWeather = document.querySelector('.widget-weather');
+      const weatherSpinner = document.querySelector('.weather-spinner');
+      const weatherIconEl = document.querySelector('.weather-icon');
+      const weatherTextEl = document.querySelector('.weather-text');
+      const timeTextEl = document.querySelector('.time-text');
+      const ratingPill = document.querySelector('.rating-combined-pill');
+      const starsBar = document.querySelector('.stars-bar');
+      const starSlots = document.querySelectorAll('.stars-bar .star-slot');
+      const ratingNoteRow = document.querySelector('.rating-note-row');
+      const ratingInputGhost = document.querySelector('.rating-input-ghost');
+      const ratingInput = document.querySelector('.rating-input');
+      const widgetLocation = document.querySelector('.widget-location');
+      const locationTextEl = document.querySelector('.location-text');
 
-    const widgetMusic = document.querySelector('.widget-music');
-    const musicSpinner = document.querySelector('.music-spinner');
-    const musicSizer = document.querySelector('.music-sizer');
-    const musicGhost = document.querySelector('.music-ghost');
-    const musicInput = document.querySelector('.music-input');
-    const paletteSwatches = document.querySelectorAll('.palette-swatch');
+      const widgetMusic = document.querySelector('.widget-music');
+      const musicSpinner = document.querySelector('.music-spinner');
+      const musicSizer = document.querySelector('.music-sizer');
+      const musicGhost = document.querySelector('.music-ghost');
+      const musicInput = document.querySelector('.music-input');
+      const paletteSwatches = document.querySelectorAll('.palette-swatch');
 
-    const cameraBottom = document.querySelector('.camera-bottom');
-    const previewBottom = document.querySelector('.preview-bottom');
-    const galleryBtn = document.querySelector('.gallery-btn');
-    const galleryInput = document.querySelector('.gallery-input');
-    const shutterBtn = document.querySelector('.shutter-btn');
-    const flipBtn = document.querySelector('.flip-btn');
-    const historyTrigger = document.querySelector('.history-trigger');
-    const historyThumb = document.querySelector('.history-thumb');
+      const cameraBottom = document.querySelector('.camera-bottom');
+      const previewBottom = document.querySelector('.preview-bottom');
+      const galleryBtn = document.querySelector('.gallery-btn');
+      const galleryInput = document.querySelector('.gallery-input');
+      const shutterBtn = document.querySelector('.shutter-btn');
+      const flipBtn = document.querySelector('.flip-btn');
+      const historyTrigger = document.querySelector('.history-trigger');
+      const historyThumb = document.querySelector('.history-thumb');
 
-    const cancelBtn = document.querySelector('.cancel-btn');
-    const sendBtn = document.querySelector('.send-btn');
-    const aaBtn = document.querySelector('.aa-btn');
+      const cancelBtn = document.querySelector('.cancel-btn');
+      const sendBtn = document.querySelector('.send-btn');
+      const aaBtn = document.querySelector('.aa-btn');
 
-    const locationSheet = document.querySelector('.location-sheet');
-    const locationSheetInput = document.querySelector('.location-sheet-input');
-    const locationSheetClose = document.querySelector('.location-sheet-close');
-    const locationGpsBtn = document.querySelector('.location-gps-btn');
-    const locationResultsList = document.querySelector('.location-results-list');
+      const locationSheet = document.querySelector('.location-sheet');
+      const locationSheetDragHandle = document.querySelector('.location-sheet .sheet-drag-handle');
+      const locationSheetInput = document.querySelector('.location-sheet-input');
+      const locationSheetClose = document.querySelector('.location-sheet-close');
+      const locationGpsBtn = document.querySelector('.location-gps-btn');
+      const locationResultsList = document.querySelector('.location-results-list');
 
-    const historySheet = document.querySelector('.history-sheet');
-    const historySheetDragHandle = document.querySelector('.history-sheet .sheet-drag-handle');
-    const historyFeed = document.querySelector('.history-feed');
-    const historyHomeGoldBtn = document.querySelector('.history-home-gold-btn');
+      const historySheet = document.querySelector('.history-sheet');
+      const historySheetDragHandle = document.querySelector('.history-sheet .sheet-drag-handle');
+      const historyFeed = document.querySelector('.history-feed');
+      const historyHomeGoldBtn = document.querySelector('.history-home-gold-btn');
 
-    let photos = loadPhotosSafely();
-    let facingMode = 'environment';
-    let currentStream = null;
-    let zoomLevel = 1;
-    let flashEnabled = false;
-    let capturedDataUrl = '';
-    let activeSlideIndex = 0;
-    let activeGuideStep = 0;
-    let activePreviewWidgetIdx = 0;
-    let selectedRecipient = '';
-    let selectedPaletteColor = '';
-    let selectedPaletteLabel = '';
+      let photos = loadPhotosSafely();
+      let facingMode = 'environment';
+      let currentStream = null;
+      let zoomLevel = 1;
+      let flashEnabled = false;
+      let capturedDataUrl = '';
+      let activeSlideIndex = 0;
+      let activeGuideStep = 0;
+      let activePreviewWidgetIdx = 0;
+      let selectedRecipient = '';
+      let selectedPaletteColor = '';
+      let selectedPaletteLabel = '';
 
-    let selectedLocationLabel = '';
-    let currentCoords = null;
-    let currentWeatherText = DEFAULT_WEATHER_TEXT;
-    let currentWeatherIconText = '☁';
-    let weatherRequestInFlight = false;
-    let ratingValue = 0;
-    let hasSelectedRating = false;
-    let searchDebounceTimer = null;
-    let toastTimer = null;
-    let musicLoadingTimer = null;
+      let selectedLocationLabel = '';
+      let currentCoords = null;
+      let currentWeatherText = DEFAULT_WEATHER_TEXT;
+      let currentWeatherIconText = 'Cloud';
+      let weatherRequestInFlight = false;
+      let ratingValue = 0;
+      let hasSelectedRating = false;
+      let searchDebounceTimer = null;
+      let toastTimer = null;
+      let musicLoadingTimer = null;
+      let clockIntervalId = null;
+      let activePlaceSearchController = null;
+      let activeWeatherController = null;
 
-    let audioCtx = null;
-    let isShutterPressing = false;
-    let shutterPointerId = null;
-    let lastHapticTime = 0;
+      let audioCtx = null;
+      let isShutterPressing = false;
+      let shutterPointerId = null;
+      let lastHapticTime = 0;
 
-    const previewWidgetLabels = [
-      '🔥 Tiện ích Bản thân',
-      '❤️ Tiện ích Crush',
-      '⭐ Tiện ích Bạn bè'
-    ];
+      const previewWidgetLabels = [
+        '🔥 Tiện ích Bản thân',
+        '❤️ Tiện ích Crush',
+        '⭐ Tiện ích Bạn bè'
+      ];
 
-    function triggerHapticFeedback(intensity = 1.0) {
-      const nowMs = performance.now();
-      if (nowMs - lastHapticTime < 45) return;
-      lastHapticTime = nowMs;
+      function triggerHapticFeedback(intensity = 1.0) {
+        const nowMs = performance.now();
+        if (nowMs - lastHapticTime < 45) return;
+        lastHapticTime = nowMs;
 
-      const clampedIntensity = Math.max(0.2, Math.min(1.5, intensity));
-      const vibDuration = Math.round(10 * clampedIntensity);
+        const clampedIntensity = Math.max(0.2, Math.min(1.5, intensity));
+        const vibDuration = Math.round(10 * clampedIntensity);
 
-      if (navigator.vibrate) {
+        if (navigator.vibrate) {
+          try {
+            navigator.vibrate(vibDuration);
+          } catch {}
+        }
         try {
-          navigator.vibrate(vibDuration);
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            if (!audioCtx) audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume().catch(() => {});
+            }
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            const baseFreq = 105 + (clampedIntensity - 1) * 35;
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(38, now + 0.028);
+            gain.gain.setValueAtTime(Math.min(0.14, 0.065 * clampedIntensity), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.032);
+          }
         } catch {}
       }
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          if (!audioCtx) audioCtx = new AudioContextClass();
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          const now = audioCtx.currentTime;
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
-          const baseFreq = 105 + (clampedIntensity - 1) * 35;
-          osc.frequency.setValueAtTime(baseFreq, now);
-          osc.frequency.exponentialRampToValueAtTime(38, now + 0.028);
-          gain.gain.setValueAtTime(Math.min(0.14, 0.065 * clampedIntensity), now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start(now);
-          osc.stop(now + 0.032);
+
+      function showToast(message) {
+        if (!message) return;
+        clearTimeout(toastTimer);
+        toastBanner.textContent = message;
+        toastBanner.classList.remove('hidden');
+        toastTimer = setTimeout(() => {
+          toastBanner.classList.add('hidden');
+        }, 1800);
+      }
+
+      function isSafeImageSrc(src) {
+        return typeof src === 'string' && /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(src);
+      }
+
+      function loadPhotosSafely() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(parsed)) return [];
+          return parsed.filter(item => item && isSafeImageSrc(item.image));
+        } catch {
+          return [];
         }
-      } catch {}
-    }
+      }
 
-    function showToast(message) {
-      clearTimeout(toastTimer);
-      toastBanner.textContent = message;
-      toastBanner.classList.remove('hidden');
-      toastTimer = setTimeout(() => {
-        toastBanner.classList.add('hidden');
-      }, 1800);
-    }
-
-    function isSafeImageSrc(src) {
-      return typeof src === 'string' && /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(src);
-    }
-
-    function loadPhotosSafely() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(parsed)) return [];
-        return parsed.filter(item => item && isSafeImageSrc(item.image));
-      } catch {
+      function savePhotosSafely(list) {
+        const candidate = [...list];
+        while (candidate.length > 0) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
+            return candidate;
+          } catch {
+            candidate.pop();
+          }
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, '[]');
+        } catch {}
         return [];
       }
-    }
 
-    function savePhotosSafely(list) {
-      const candidate = [...list];
-      while (candidate.length > 0) {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
-          return candidate;
-        } catch {
-          candidate.pop();
+      function syncZoomBadge() {
+        zoomBtn.textContent = `${zoomLevel}x`;
+        zoomBtn.classList.toggle('active', zoomLevel > 1);
+        zoomBtn.setAttribute('aria-pressed', String(zoomLevel > 1));
+      }
+
+      function syncFlashBadge() {
+        flashBtn.classList.toggle('active', flashEnabled);
+        flashBtn.setAttribute('aria-pressed', String(flashEnabled));
+      }
+
+      function syncProfileExpandedState() {
+        const isOpen = profileSheet.classList.contains('open');
+        cornerCircleBtn.setAttribute('aria-expanded', String(isOpen));
+      }
+
+      async function applyZoom(track) {
+        const baseTransform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+        if (!track || !track.getCapabilities || !track.applyConstraints) {
+          cameraVideo.style.transform = `${baseTransform} scale(${zoomLevel})`;
+          return;
         }
-      }
-      try {
-        localStorage.setItem(STORAGE_KEY, '[]');
-      } catch {}
-      return [];
-    }
-
-    function syncZoomBadge() {
-      zoomBtn.textContent = `${zoomLevel}x`;
-      zoomBtn.classList.toggle('active', zoomLevel > 1);
-    }
-
-    function syncFlashBadge() {
-      flashBtn.classList.toggle('active', flashEnabled);
-    }
-
-    async function applyZoom(track) {
-      const baseTransform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-      if (!track || !track.getCapabilities || !track.applyConstraints) {
-        cameraVideo.style.transform = `${baseTransform} scale(${zoomLevel})`;
-        return;
-      }
-      const capabilities = track.getCapabilities();
-      try {
-        if (capabilities.zoom) {
-          const minZoom = capabilities.zoom.min || 1;
-          const maxZoom = capabilities.zoom.max || 5;
-          const targetZoom = Math.min(Math.max(zoomLevel, minZoom), maxZoom);
-          await track.applyConstraints({
-            advanced: [{ zoom: targetZoom }]
-          });
-          const extraScale = zoomLevel > targetZoom ? (zoomLevel / targetZoom) : 1;
-          cameraVideo.style.transform = `${baseTransform} scale(${extraScale})`;
-        } else {
+        const capabilities = track.getCapabilities();
+        try {
+          if (capabilities.zoom) {
+            const minZoom = capabilities.zoom.min || 1;
+            const maxZoom = capabilities.zoom.max || 5;
+            const targetZoom = Math.min(Math.max(zoomLevel, minZoom), maxZoom);
+            await track.applyConstraints({
+              advanced: [{ zoom: targetZoom }]
+            });
+            const extraScale = zoomLevel > targetZoom ? (zoomLevel / targetZoom) : 1;
+            cameraVideo.style.transform = `${baseTransform} scale(${extraScale})`;
+          } else {
+            cameraVideo.style.transform = `${baseTransform} scale(${zoomLevel})`;
+          }
+        } catch {
           cameraVideo.style.transform = `${baseTransform} scale(${zoomLevel})`;
         }
-      } catch {
-        cameraVideo.style.transform = `${baseTransform} scale(${zoomLevel})`;
       }
-    }
 
-    async function applyTorch(track, enabled) {
-      if (!track || !track.getCapabilities || !track.applyConstraints) return;
-      const capabilities = track.getCapabilities();
-      try {
-        if (capabilities.torch) {
-          await track.applyConstraints({
-            advanced: [{ torch: enabled }]
+      async function applyTorch(track, enabled) {
+        if (!track || !track.getCapabilities || !track.applyConstraints) return;
+        const capabilities = track.getCapabilities();
+        try {
+          if (capabilities.torch) {
+            await track.applyConstraints({
+              advanced: [{ torch: enabled }]
+            });
+          } else if (enabled) {
+            flashEnabled = false;
+            syncFlashBadge();
+          }
+        } catch {
+          if (enabled) {
+            flashEnabled = false;
+            syncFlashBadge();
+          }
+        }
+      }
+
+      function stopCamera() {
+        if (currentStream) {
+          currentStream.getTracks().forEach(t => t.stop());
+          currentStream = null;
+        }
+        if (cameraVideo.srcObject) {
+          cameraVideo.srcObject = null;
+        }
+      }
+
+      async function startCamera() {
+        stopCamera();
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: facingMode,
+              width: { ideal: 1080 },
+              height: { ideal: 1080 }
+            },
+            audio: false
           });
-        } else if (enabled) {
-          flashEnabled = false;
-          syncFlashBadge();
-        }
-      } catch {
-        if (enabled) {
-          flashEnabled = false;
-          syncFlashBadge();
+          if (document.hidden || !previewImg.classList.contains('hidden')) {
+            stream.getTracks().forEach(t => t.stop());
+            return;
+          }
+          currentStream = stream;
+          cameraVideo.srcObject = currentStream;
+          cameraVideo.classList.toggle('mirror', facingMode === 'user');
+
+          const track = currentStream.getVideoTracks()[0];
+          if (track) {
+            await applyZoom(track);
+            await applyTorch(track, flashEnabled);
+          }
+        } catch {}
+      }
+
+      async function handleFlashToggle() {
+        flashEnabled = !flashEnabled;
+        syncFlashBadge();
+        if (currentStream) {
+          const track = currentStream.getVideoTracks()[0];
+          if (track) await applyTorch(track, flashEnabled);
         }
       }
-    }
 
-    function stopCamera() {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
+      async function handleZoomToggle() {
+        zoomLevel = zoomLevel === 1 ? 5 : 1;
+        syncZoomBadge();
+        if (currentStream) {
+          const track = currentStream.getVideoTracks()[0];
+          if (track) await applyZoom(track);
+        }
       }
-    }
 
-    async function startCamera() {
-      stopCamera();
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      function syncCaptionSize() {
+        captionGhost.textContent = captionInput.value || captionInput.placeholder || '';
+      }
 
-      try {
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: facingMode,
-            width: { ideal: 1080 },
-            height: { ideal: 1080 }
-          },
-          audio: false
+      function syncRatingNoteSize() {
+        ratingInputGhost.textContent = ratingInput.value || ratingInput.placeholder || '';
+      }
+
+      function syncMusicSize() {
+        musicGhost.textContent = musicInput.value || musicInput.placeholder || '';
+      }
+
+      function clearPaletteSelection() {
+        selectedPaletteColor = '';
+        selectedPaletteLabel = '';
+        paletteSwatches.forEach(btn => {
+          btn.classList.remove('selected');
+          btn.setAttribute('aria-pressed', 'false');
         });
-        cameraVideo.srcObject = currentStream;
-        cameraVideo.classList.toggle('mirror', facingMode === 'user');
+      }
 
-        const track = currentStream.getVideoTracks()[0];
-        if (track) {
-          await applyZoom(track);
-          await applyTorch(track, flashEnabled);
+      function triggerMusicSpinner() {
+        clearTimeout(musicLoadingTimer);
+        widgetMusic.classList.add('is-loading');
+        musicSpinner.classList.remove('hidden');
+        musicSizer.classList.add('hidden');
+
+        musicLoadingTimer = setTimeout(() => {
+          widgetMusic.classList.remove('is-loading');
+          musicSpinner.classList.add('hidden');
+          musicSizer.classList.remove('hidden');
+          syncMusicSize();
+        }, 1200);
+      }
+
+      function updateTimeWidget() {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        timeTextEl.textContent = `${hh}:${mm}`;
+      }
+
+      function formatVietnameseDate(dateObj = new Date()) {
+        const day = dateObj.getDate();
+        const month = dateObj.getMonth() + 1;
+        return `${day} thg ${month}`;
+      }
+
+      function renderWeatherSvg(code) {
+        if (code === 0) {
+          currentWeatherIconText = 'Sun';
+          return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
         }
-      } catch {}
-    }
-
-    async function handleFlashToggle() {
-      flashEnabled = !flashEnabled;
-      syncFlashBadge();
-      if (currentStream) {
-        const track = currentStream.getVideoTracks()[0];
-        if (track) await applyTorch(track, flashEnabled);
+        if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) {
+          currentWeatherIconText = 'Rain';
+          return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path><line x1="8" y1="13" x2="8" y2="15"></line><line x1="12" y1="15" x2="12" y2="17"></line><line x1="16" y1="13" x2="16" y2="15"></line></svg>`;
+        }
+        currentWeatherIconText = 'Cloud';
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>`;
       }
-    }
 
-    async function handleZoomToggle() {
-      zoomLevel = zoomLevel === 1 ? 5 : 1;
-      syncZoomBadge();
-      if (currentStream) {
-        const track = currentStream.getVideoTracks()[0];
-        if (track) await applyZoom(track);
+      function setWeatherLoadingState(loading) {
+        weatherSpinner.classList.toggle('hidden', !loading);
+        weatherIconEl.classList.toggle('hidden', loading);
       }
-    }
 
-    function syncCaptionSize() {
-      captionGhost.textContent = captionInput.value || captionInput.placeholder || '';
-    }
+      async function fetchRealWeather(coords = currentCoords) {
+        if (!coords) {
+          currentWeatherText = DEFAULT_WEATHER_TEXT;
+          weatherTextEl.textContent = currentWeatherText;
+          return;
+        }
+        if (activeWeatherController) {
+          activeWeatherController.abort();
+        }
+        const controller = new AbortController();
+        activeWeatherController = controller;
+        setWeatherLoadingState(true);
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code&timezone=auto`;
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const temp = Math.round(data?.current?.temperature_2m);
+          const code = data?.current?.weather_code ?? 2;
+          weatherIconEl.innerHTML = renderWeatherSvg(code);
+          currentWeatherText = Number.isFinite(temp) ? `${temp}°C` : DEFAULT_WEATHER_TEXT;
+          weatherTextEl.textContent = currentWeatherText;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          currentWeatherText = DEFAULT_WEATHER_TEXT;
+          weatherTextEl.textContent = currentWeatherText;
+        } finally {
+          if (activeWeatherController === controller) {
+            activeWeatherController = null;
+            setWeatherLoadingState(false);
+          }
+        }
+      }
 
-    function syncRatingNoteSize() {
-      ratingInputGhost.textContent = ratingInput.value || ratingInput.placeholder || '';
-    }
+      function requestWeatherWithPermission(forcePrompt = false) {
+        if (weatherRequestInFlight) return;
+        if (currentCoords && !forcePrompt) {
+          fetchRealWeather(currentCoords);
+          return;
+        }
+        if (!navigator.geolocation) {
+          showToast('Trình duyệt không hỗ trợ định vị');
+          return;
+        }
+        weatherRequestInFlight = true;
+        setWeatherLoadingState(true);
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            weatherRequestInFlight = false;
+            const lat = Number(pos.coords.latitude.toFixed(4));
+            const lon = Number(pos.coords.longitude.toFixed(4));
+            currentCoords = { lat, lon };
+            await fetchRealWeather(currentCoords);
+          },
+          () => {
+            weatherRequestInFlight = false;
+            setWeatherLoadingState(false);
+            currentWeatherText = DEFAULT_WEATHER_TEXT;
+            weatherTextEl.textContent = currentWeatherText;
+            showToast('Cần cấp quyền vị trí để lấy nhiệt độ');
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+        );
+      }
 
-    function syncMusicSize() {
-      musicGhost.textContent = musicInput.value || musicInput.placeholder || '';
-    }
+      async function searchPlacesFromApi(keyword) {
+        const q = keyword.trim();
+        if (!q) {
+          if (activePlaceSearchController) {
+            activePlaceSearchController.abort();
+            activePlaceSearchController = null;
+          }
+          locationResultsList.innerHTML = '';
+          return;
+        }
+        if (activePlaceSearchController) {
+          activePlaceSearchController.abort();
+        }
+        const controller = new AbortController();
+        activePlaceSearchController = controller;
+        locationResultsList.innerHTML = '<div class="location-result-sub">Đang tìm kiếm...</div>';
+        try {
+          const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=vi&format=json`;
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const results = Array.isArray(data?.results) ? data.results : [];
+          if (results.length === 0) {
+            locationResultsList.innerHTML = '<div class="location-result-sub">Không tìm thấy địa điểm</div>';
+            return;
+          }
+          locationResultsList.innerHTML = results.map((item, idx) => {
+            const title = item.name;
+            const region = [item.admin2, item.admin1, item.country].filter(Boolean).join(', ');
+            return `
+              <div class="location-result-item" data-idx="${idx}">
+                <span>${escapeHtml(title)}</span>
+                <span class="location-result-sub">${escapeHtml(region)}</span>
+              </div>
+            `;
+          }).join('');
 
-    function clearPaletteSelection() {
-      selectedPaletteColor = '';
-      selectedPaletteLabel = '';
-      paletteSwatches.forEach(btn => btn.classList.remove('selected'));
-    }
+          locationResultsList.querySelectorAll('.location-result-item').forEach((el) => {
+            el.addEventListener('click', async () => {
+              const idx = parseInt(el.dataset.idx, 10);
+              const picked = results[idx];
+              if (!picked) return;
+              const fullName = picked.country ? `${picked.name}, ${picked.country}` : picked.name;
+              selectedLocationLabel = fullName;
+              currentCoords = { lat: picked.latitude, lon: picked.longitude };
+              locationTextEl.textContent = fullName;
+              closeLocationSheet();
+              await fetchRealWeather(currentCoords);
+            });
+          });
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          locationResultsList.innerHTML = '<div class="location-result-sub">Lỗi kết nối tìm kiếm</div>';
+        } finally {
+          if (activePlaceSearchController === controller) {
+            activePlaceSearchController = null;
+          }
+        }
+      }
 
-    function triggerMusicSpinner() {
-      clearTimeout(musicLoadingTimer);
-      widgetMusic.classList.add('is-loading');
-      musicSpinner.classList.remove('hidden');
-      musicSizer.classList.add('hidden');
+      function openLocationSheet() {
+        locationResultsList.innerHTML = '';
+        locationSheet.classList.remove('hidden');
+        locationSheetInput.value = '';
+        requestAnimationFrame(() => locationSheetInput.focus());
+      }
 
-      musicLoadingTimer = setTimeout(() => {
+      function closeLocationSheet() {
+        clearTimeout(searchDebounceTimer);
+        if (activePlaceSearchController) {
+          activePlaceSearchController.abort();
+          activePlaceSearchController = null;
+        }
+        locationSheet.classList.add('hidden');
+      }
+
+      function triggerResetAnimation() {
+        starSlots.forEach((slot, idx) => {
+          setTimeout(() => {
+            slot.classList.remove('active-step');
+            slot.classList.add('resetting');
+            setTimeout(() => {
+              slot.classList.remove('resetting');
+            }, 160);
+          }, idx * 20);
+        });
+      }
+
+      function renderRatingStars(value, selected = false, fromSwipe = false) {
+        const prevValue = ratingValue;
+        const clamped = Math.max(0, Math.min(5, Math.round(value * 2) / 2));
+        const changed = clamped !== prevValue;
+        ratingValue = clamped;
+        if (selected) {
+          hasSelectedRating = clamped > 0;
+        }
+
+        starSlots.forEach((slot, idx) => {
+          const starIndex = idx + 1;
+          const fillEl = slot.querySelector('.star-fill');
+          const isFull = clamped >= starIndex;
+          const isHalf = !isFull && clamped >= starIndex - 0.5;
+
+          if (isFull) {
+            fillEl.style.width = '100%';
+          } else if (isHalf) {
+            fillEl.style.width = '50%';
+          } else {
+            fillEl.style.width = '0%';
+          }
+
+          const isCurrentActiveSlot = (clamped > 0) && (Math.ceil(clamped) === starIndex);
+          slot.classList.toggle('active-step', isCurrentActiveSlot);
+        });
+
+        if (fromSwipe && changed && clamped > 0) {
+          const intensity = 0.75 + (clamped / 5) * 0.75;
+          triggerHapticFeedback(intensity);
+        }
+
+        if (prevValue > 0 && clamped === 0) {
+          triggerResetAnimation();
+          if (fromSwipe) {
+            triggerHapticFeedback(0.6);
+          }
+        }
+
+        if (hasSelectedRating && ratingValue > 0) {
+          ratingNoteRow.classList.remove('hidden');
+          ratingPill.classList.remove('no-note');
+          syncRatingNoteSize();
+        } else {
+          ratingNoteRow.classList.add('hidden');
+          ratingPill.classList.add('no-note');
+          ratingInput.value = '';
+          syncRatingNoteSize();
+        }
+      }
+
+      function computeRatingFromPointer(clientX) {
+        const slots = [...starSlots];
+        if (!slots.length) return ratingValue;
+        const firstRect = slots[0].getBoundingClientRect();
+        const lastRect = slots[slots.length - 1].getBoundingClientRect();
+        const totalWidth = lastRect.right - firstRect.left;
+        if (totalWidth <= 0) return ratingValue;
+        const ratio = (clientX - firstRect.left) / totalWidth;
+        if (ratio <= 0.04) return 0;
+        const raw = ratio * 5;
+        return Math.max(0, Math.min(5, Math.round(raw * 2) / 2));
+      }
+
+      function enterPreviewMode(dataUrl) {
+        capturedDataUrl = dataUrl;
+        previewImg.src = dataUrl;
+        cameraVideo.classList.add('hidden');
+        previewImg.classList.remove('hidden');
+
+        cameraHeader.classList.add('hidden');
+        previewHeader.classList.remove('hidden');
+
+        cameraVfControls.classList.add('hidden');
+        previewOverlays.classList.remove('hidden');
+        carouselDots.classList.remove('hidden');
+
+        cameraBottom.classList.add('hidden');
+        previewBottom.classList.remove('hidden');
+
+        activeSlideIndex = 0;
+        overlayTrack.scrollLeft = 0;
+        updateDots(0);
+        syncCaptionSize();
+        syncRatingNoteSize();
+        syncMusicSize();
+        updateTimeWidget();
+        if (currentCoords) {
+          fetchRealWeather(currentCoords);
+        }
+      }
+
+      function exitPreviewMode() {
+        capturedDataUrl = '';
+        previewImg.removeAttribute('src');
+        captionInput.value = '';
+        ratingInput.value = '';
+        ratingValue = 0;
+        hasSelectedRating = false;
+        renderRatingStars(0, false, false);
+        musicInput.value = '';
+        clearTimeout(musicLoadingTimer);
         widgetMusic.classList.remove('is-loading');
         musicSpinner.classList.add('hidden');
         musicSizer.classList.remove('hidden');
-        syncMusicSize();
-      }, 1200);
-    }
-
-    function updateTimeWidget() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      timeTextEl.textContent = `${hh}:${mm}`;
-    }
-
-    function formatVietnameseDate(dateObj = new Date()) {
-      const day = dateObj.getDate();
-      const month = dateObj.getMonth() + 1;
-      return `${day} thg ${month}`;
-    }
-
-    function renderWeatherSvg(code) {
-      if (code === 0) {
-        currentWeatherIconText = 'Sun';
-        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-      }
-      if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) {
-        currentWeatherIconText = 'Rain';
-        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path><line x1="8" y1="13" x2="8" y2="15"></line><line x1="12" y1="15" x2="12" y2="17"></line><line x1="16" y1="13" x2="16" y2="15"></line></svg>`;
-      }
-      currentWeatherIconText = 'Cloud';
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>`;
-    }
-
-    function setWeatherLoadingState(loading) {
-      weatherSpinner.classList.toggle('hidden', !loading);
-      weatherIconEl.classList.toggle('hidden', loading);
-    }
-
-    async function fetchRealWeather(coords = currentCoords) {
-      if (!coords) {
+        clearPaletteSelection();
+        selectedLocationLabel = '';
+        currentCoords = null;
+        locationTextEl.textContent = 'Thêm vị trí';
         currentWeatherText = DEFAULT_WEATHER_TEXT;
         weatherTextEl.textContent = currentWeatherText;
-        return;
-      }
-      setWeatherLoadingState(true);
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code&timezone=auto`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const temp = Math.round(data?.current?.temperature_2m);
-        const code = data?.current?.weather_code ?? 2;
-        weatherIconEl.innerHTML = renderWeatherSvg(code);
-        currentWeatherText = Number.isFinite(temp) ? `${temp}°C` : DEFAULT_WEATHER_TEXT;
-        weatherTextEl.textContent = currentWeatherText;
-      } catch {
-        currentWeatherText = DEFAULT_WEATHER_TEXT;
-        weatherTextEl.textContent = currentWeatherText;
-      } finally {
         setWeatherLoadingState(false);
-      }
-    }
 
-    function requestWeatherWithPermission(forcePrompt = false) {
-      if (weatherRequestInFlight) return;
-      if (currentCoords && !forcePrompt) {
-        fetchRealWeather(currentCoords);
-        return;
-      }
-      if (!navigator.geolocation) {
-        showToast('Trình duyệt không hỗ trợ định vị');
-        return;
-      }
-      weatherRequestInFlight = true;
-      setWeatherLoadingState(true);
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          weatherRequestInFlight = false;
-          const lat = Number(pos.coords.latitude.toFixed(4));
-          const lon = Number(pos.coords.longitude.toFixed(4));
-          currentCoords = { lat, lon };
-          await fetchRealWeather(currentCoords);
-        },
-        () => {
-          weatherRequestInFlight = false;
-          setWeatherLoadingState(false);
-          currentWeatherText = DEFAULT_WEATHER_TEXT;
-          weatherTextEl.textContent = currentWeatherText;
-          showToast('Cần cấp quyền vị trí để lấy nhiệt độ');
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-      );
-    }
+        syncCaptionSize();
+        syncRatingNoteSize();
+        syncMusicSize();
+        previewImg.classList.add('hidden');
+        cameraVideo.classList.remove('hidden');
 
-    async function searchPlacesFromApi(keyword) {
-      const q = keyword.trim();
-      if (!q) {
-        locationResultsList.innerHTML = '';
-        return;
+        previewHeader.classList.add('hidden');
+        cameraHeader.classList.remove('hidden');
+
+        previewOverlays.classList.add('hidden');
+        carouselDots.classList.add('hidden');
+        cameraVfControls.classList.remove('hidden');
+
+        previewBottom.classList.add('hidden');
+        cameraBottom.classList.remove('hidden');
+
+        if (!currentStream && !document.hidden) {
+          startCamera();
+        }
       }
-      locationResultsList.innerHTML = '<div class="location-result-sub">Đang tìm kiếm...</div>';
-      try {
-        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=vi&format=json`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const results = Array.isArray(data?.results) ? data.results : [];
-        if (results.length === 0) {
-          locationResultsList.innerHTML = '<div class="location-result-sub">Không tìm thấy địa điểm</div>';
+
+      function drawCroppedSquareToCanvas(sourceEl, srcWidth, srcHeight, mirror = false) {
+        previewCanvas.width = OUTPUT_SIZE;
+        previewCanvas.height = OUTPUT_SIZE;
+        const ctx = previewCanvas.getContext('2d');
+
+        const minSide = Math.min(srcWidth, srcHeight);
+        const sx = (srcWidth - minSide) / 2;
+        const sy = (srcHeight - minSide) / 2;
+
+        ctx.save();
+        if (mirror) {
+          ctx.translate(OUTPUT_SIZE, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.drawImage(sourceEl, sx, sy, minSide, minSide, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+        ctx.restore();
+
+        return previewCanvas.toDataURL('image/jpeg', JPEG_QUALITY);
+      }
+
+      async function capturePhoto() {
+        if (!cameraVideo.videoWidth || !cameraVideo.videoHeight) return;
+
+        const isFrontCamera = facingMode === 'user';
+        const dataUrl = drawCroppedSquareToCanvas(
+          cameraVideo,
+          cameraVideo.videoWidth,
+          cameraVideo.videoHeight,
+          isFrontCamera
+        );
+        enterPreviewMode(dataUrl);
+      }
+
+      function normalizeUploadedImage(dataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve(drawCroppedSquareToCanvas(img, img.naturalWidth, img.naturalHeight, false));
+          };
+          img.onerror = () => resolve(dataUrl);
+          img.src = dataUrl;
+        });
+      }
+
+      function getActiveOverlayText() {
+        if (activeSlideIndex === 0) return captionInput.value.trim();
+        if (activeSlideIndex === 1) return selectedPaletteLabel ? `${selectedPaletteLabel}` : '';
+        if (activeSlideIndex === 2) {
+          if (!hasSelectedRating || ratingValue === 0) return '';
+          const note = ratingInput.value.trim();
+          return note
+            ? `${ratingValue.toFixed(1)} • "${note}"`
+            : `${ratingValue.toFixed(1)}`;
+        }
+        if (activeSlideIndex === 3) {
+          const song = musicInput.value.trim();
+          return song ? `${song}` : '';
+        }
+        if (activeSlideIndex === 4) return currentCoords ? `${currentWeatherIconText} ${currentWeatherText}` : '';
+        if (activeSlideIndex === 5) return `${timeTextEl.textContent}`;
+        if (activeSlideIndex === 6) return selectedLocationLabel ? `${selectedLocationLabel}` : '';
+        return '';
+      }
+
+      function renderHistory() {
+        if (photos.length === 0) {
+          historyThumb.textContent = '0';
+          historyFeed.innerHTML = '<div class="empty-history">Chưa có ảnh nào được gửi</div>';
           return;
         }
-        locationResultsList.innerHTML = results.map((item, idx) => {
-          const title = item.name;
-          const region = [item.admin2, item.admin1, item.country].filter(Boolean).join(', ');
+
+        const latestImg = isSafeImageSrc(photos[0].image) ? photos[0].image : '';
+        historyThumb.innerHTML = latestImg ? `<img src="${latestImg}" alt="Ảnh mới nhất" />` : '0';
+
+        historyFeed.innerHTML = photos.map(item => {
+          const safeSrc = isSafeImageSrc(item.image) ? item.image : '';
+          const authorLabel = item.author || 'Bạn';
+          const dateLabel = item.dateText || formatVietnameseDate(new Date(item.id || Date.now()));
           return `
-            <div class="location-result-item" data-idx="${idx}">
-              <span>${escapeHtml(title)}</span>
-              <span class="location-result-sub">${escapeHtml(region)}</span>
+            <div class="history-card">
+              <div class="history-card-img-wrap">
+                ${safeSrc ? `<img src="${safeSrc}" alt="Locket" loading="lazy" />` : ''}
+                ${item.caption ? `<div class="history-card-caption">${escapeHtml(item.caption)}</div>` : ''}
+              </div>
+              <div class="history-card-meta">
+                <span class="history-card-author">${escapeHtml(authorLabel)}</span>
+                <span class="history-card-date">${escapeHtml(dateLabel)}</span>
+              </div>
             </div>
           `;
         }).join('');
+      }
 
-        locationResultsList.querySelectorAll('.location-result-item').forEach((el) => {
-          el.addEventListener('click', async () => {
-            const idx = parseInt(el.dataset.idx, 10);
-            const picked = results[idx];
-            if (!picked) return;
-            const fullName = picked.country ? `${picked.name}, ${picked.country}` : picked.name;
-            selectedLocationLabel = fullName;
-            currentCoords = { lat: picked.latitude, lon: picked.longitude };
-            locationTextEl.textContent = fullName;
-            closeLocationSheet();
-            await fetchRealWeather(currentCoords);
-          });
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, m => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+      }
+
+      function updateDots(index) {
+        dots.forEach((d, idx) => {
+          const isActive = idx === index;
+          d.classList.toggle('active', isActive);
+          d.setAttribute('aria-selected', String(isActive));
         });
-      } catch {
-        locationResultsList.innerHTML = '<div class="location-result-sub">Lỗi kết nối tìm kiếm</div>';
-      }
-    }
-
-    function openLocationSheet() {
-      locationResultsList.innerHTML = '';
-      locationSheet.classList.remove('hidden');
-      locationSheetInput.value = '';
-      locationSheetInput.focus();
-    }
-
-    function closeLocationSheet() {
-      locationSheet.classList.add('hidden');
-    }
-
-    function triggerResetAnimation() {
-      starSlots.forEach((slot, idx) => {
-        setTimeout(() => {
-          slot.classList.remove('active-step');
-          slot.classList.add('resetting');
-          setTimeout(() => {
-            slot.classList.remove('resetting');
-          }, 160);
-        }, idx * 20);
-      });
-    }
-
-    function renderRatingStars(value, selected = false, fromSwipe = false) {
-      const prevValue = ratingValue;
-      const clamped = Math.max(0, Math.min(5, Math.round(value * 2) / 2));
-      const changed = clamped !== prevValue;
-      ratingValue = clamped;
-      if (selected) {
-        hasSelectedRating = clamped > 0;
       }
 
-      starSlots.forEach((slot, idx) => {
-        const starIndex = idx + 1;
-        const fillEl = slot.querySelector('.star-fill');
-        const isFull = clamped >= starIndex;
-        const isHalf = !isFull && clamped >= starIndex - 0.5;
-
-        if (isFull) {
-          fillEl.style.width = '100%';
-        } else if (isHalf) {
-          fillEl.style.width = '50%';
-        } else {
-          fillEl.style.width = '0%';
-        }
-
-        const isCurrentActiveSlot = (clamped > 0) && (Math.ceil(clamped) === starIndex);
-        slot.classList.toggle('active-step', isCurrentActiveSlot);
-      });
-
-      if (fromSwipe && changed && clamped > 0) {
-        const intensity = 0.75 + (clamped / 5) * 0.75;
-        triggerHapticFeedback(intensity);
-      }
-
-      if (prevValue > 0 && clamped === 0) {
-        triggerResetAnimation();
-        if (fromSwipe) {
-          triggerHapticFeedback(0.6);
-        }
-      }
-
-      if (hasSelectedRating && ratingValue > 0) {
-        ratingNoteRow.classList.remove('hidden');
-        ratingPill.classList.remove('no-note');
-        syncRatingNoteSize();
-      } else {
-        ratingNoteRow.classList.add('hidden');
-        ratingPill.classList.add('no-note');
-        ratingInput.value = '';
-        syncRatingNoteSize();
-      }
-    }
-
-    function computeRatingFromPointer(clientX) {
-      const slots = [...starSlots];
-      if (!slots.length) return ratingValue;
-      const firstRect = slots[0].getBoundingClientRect();
-      const lastRect = slots[slots.length - 1].getBoundingClientRect();
-      const totalWidth = lastRect.right - firstRect.left;
-      if (totalWidth <= 0) return ratingValue;
-      const ratio = (clientX - firstRect.left) / totalWidth;
-      if (ratio <= 0.04) return 0;
-      const raw = ratio * 5;
-      return Math.max(0, Math.min(5, Math.round(raw * 2) / 2));
-    }
-
-    function enterPreviewMode(dataUrl) {
-      capturedDataUrl = dataUrl;
-      previewImg.src = dataUrl;
-      cameraVideo.classList.add('hidden');
-      previewImg.classList.remove('hidden');
-
-      cameraHeader.classList.add('hidden');
-      previewHeader.classList.remove('hidden');
-
-      cameraVfControls.classList.add('hidden');
-      previewOverlays.classList.remove('hidden');
-      carouselDots.classList.remove('hidden');
-
-      cameraBottom.classList.add('hidden');
-      previewBottom.classList.remove('hidden');
-
-      activeSlideIndex = 0;
-      overlayTrack.scrollLeft = 0;
-      updateDots(0);
-      syncCaptionSize();
-      syncRatingNoteSize();
-      syncMusicSize();
-      updateTimeWidget();
-      if (currentCoords) {
-        fetchRealWeather(currentCoords);
-      }
-    }
-
-    function exitPreviewMode() {
-      capturedDataUrl = '';
-      captionInput.value = '';
-      ratingInput.value = '';
-      ratingValue = 0;
-      hasSelectedRating = false;
-      renderRatingStars(0, false, false);
-      musicInput.value = '';
-      clearTimeout(musicLoadingTimer);
-      widgetMusic.classList.remove('is-loading');
-      musicSpinner.classList.add('hidden');
-      musicSizer.classList.remove('hidden');
-      clearPaletteSelection();
-      selectedLocationLabel = '';
-      currentCoords = null;
-      locationTextEl.textContent = 'Thêm vị trí';
-      currentWeatherText = DEFAULT_WEATHER_TEXT;
-      weatherTextEl.textContent = currentWeatherText;
-      setWeatherLoadingState(false);
-
-      syncCaptionSize();
-      syncRatingNoteSize();
-      syncMusicSize();
-      previewImg.classList.add('hidden');
-      cameraVideo.classList.remove('hidden');
-
-      previewHeader.classList.add('hidden');
-      cameraHeader.classList.remove('hidden');
-
-      previewOverlays.classList.add('hidden');
-      carouselDots.classList.add('hidden');
-      cameraVfControls.classList.remove('hidden');
-
-      previewBottom.classList.add('hidden');
-      cameraBottom.classList.remove('hidden');
-    }
-
-    function drawCroppedSquareToCanvas(sourceEl, srcWidth, srcHeight, mirror = false) {
-      previewCanvas.width = OUTPUT_SIZE;
-      previewCanvas.height = OUTPUT_SIZE;
-      const ctx = previewCanvas.getContext('2d');
-
-      const minSide = Math.min(srcWidth, srcHeight);
-      const sx = (srcWidth - minSide) / 2;
-      const sy = (srcHeight - minSide) / 2;
-
-      ctx.save();
-      if (mirror) {
-        ctx.translate(OUTPUT_SIZE, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.drawImage(sourceEl, sx, sy, minSide, minSide, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-      ctx.restore();
-
-      return previewCanvas.toDataURL('image/jpeg', JPEG_QUALITY);
-    }
-
-    async function capturePhoto() {
-      if (!cameraVideo.videoWidth || !cameraVideo.videoHeight) return;
-
-      const isFrontCamera = facingMode === 'user';
-      const dataUrl = drawCroppedSquareToCanvas(
-        cameraVideo,
-        cameraVideo.videoWidth,
-        cameraVideo.videoHeight,
-        isFrontCamera
-      );
-      enterPreviewMode(dataUrl);
-    }
-
-    function normalizeUploadedImage(dataUrl) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          resolve(drawCroppedSquareToCanvas(img, img.naturalWidth, img.naturalHeight, false));
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
-      });
-    }
-
-    function getActiveOverlayText() {
-      if (activeSlideIndex === 0) return captionInput.value.trim();
-      if (activeSlideIndex === 1) return selectedPaletteLabel ? `${selectedPaletteLabel}` : '';
-      if (activeSlideIndex === 2) {
-        if (!hasSelectedRating || ratingValue === 0) return '';
-        const note = ratingInput.value.trim();
-        return note
-          ? `${ratingValue.toFixed(1)} • "${note}"`
-          : `${ratingValue.toFixed(1)}`;
-      }
-      if (activeSlideIndex === 3) {
-        const song = musicInput.value.trim();
-        return song ? `${song}` : '';
-      }
-      if (activeSlideIndex === 4) return currentCoords ? `${currentWeatherIconText} ${currentWeatherText}` : '';
-      if (activeSlideIndex === 5) return `${timeTextEl.textContent}`;
-      if (activeSlideIndex === 6) return selectedLocationLabel ? `${selectedLocationLabel}` : '';
-      return '';
-    }
-
-    function renderHistory() {
-      if (photos.length === 0) {
-        historyThumb.textContent = '0';
-        historyFeed.innerHTML = '<div class="empty-history">Chưa có ảnh nào được gửi</div>';
-        return;
-      }
-
-      const latestImg = isSafeImageSrc(photos[0].image) ? photos[0].image : '';
-      historyThumb.innerHTML = latestImg ? `<img src="${latestImg}" alt="Latest" />` : '0';
-
-      historyFeed.innerHTML = photos.map(item => {
-        const safeSrc = isSafeImageSrc(item.image) ? item.image : '';
-        const authorLabel = item.author || 'Bạn';
-        const dateLabel = item.dateText || formatVietnameseDate(new Date(item.id || Date.now()));
-        return `
-          <div class="history-card">
-            <div class="history-card-img-wrap">
-              ${safeSrc ? `<img src="${safeSrc}" alt="Locket" />` : ''}
-              ${item.caption ? `<div class="history-card-caption">${escapeHtml(item.caption)}</div>` : ''}
-            </div>
-            <div class="history-card-meta">
-              <span class="history-card-author">${escapeHtml(authorLabel)}</span>
-              <span class="history-card-date">${escapeHtml(dateLabel)}</span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
-
-    function updateDots(index) {
-      dots.forEach((d, idx) => {
-        d.classList.toggle('active', idx === index);
-      });
-    }
-
-    function drawRoundRectPath(ctx, x, y, w, h, r) {
-      const radius = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.arcTo(x + w, y, x + w, y + h, radius);
-      ctx.arcTo(x + w, y + h, x, y + h, radius);
-      ctx.arcTo(x, y + h, x, y, radius);
-      ctx.arcTo(x, y, x + w, y, radius);
-      ctx.closePath();
-    }
-
-    function drawSingleStar(ctx, cx, cy, outerR, innerR, fillFraction) {
-      ctx.save();
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const r = i % 2 === 0 ? outerR : innerR;
-        const angle = -Math.PI / 2 + (i * Math.PI) / 5;
-        const px = cx + Math.cos(angle) * r;
-        const py = cy + Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-      ctx.fill();
-
-      if (fillFraction > 0) {
-        const clamped = Math.max(0, Math.min(1, fillFraction));
-        const clipWidth = outerR * 2 * clamped;
-        ctx.save();
+      function drawRoundRectPath(ctx, x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
         ctx.beginPath();
-        ctx.rect(cx - outerR, cy - outerR - 2, clipWidth, outerR * 2 + 4);
-        ctx.clip();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
 
+      function drawSingleStar(ctx, cx, cy, outerR, innerR, fillFraction) {
+        ctx.save();
         ctx.beginPath();
         for (let i = 0; i < 10; i++) {
           const r = i % 2 === 0 ? outerR : innerR;
@@ -3291,602 +3411,700 @@
           else ctx.lineTo(px, py);
         }
         ctx.closePath();
-        ctx.fillStyle = '#ffb800';
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
         ctx.fill();
+
+        if (fillFraction > 0) {
+          const clamped = Math.max(0, Math.min(1, fillFraction));
+          const clipWidth = outerR * 2 * clamped;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(cx - outerR, cy - outerR - 2, clipWidth, outerR * 2 + 4);
+          ctx.clip();
+
+          ctx.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+            const px = cx + Math.cos(angle) * r;
+            const py = cy + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fillStyle = '#ffb800';
+          ctx.fill();
+          ctx.restore();
+        }
         ctx.restore();
       }
-      ctx.restore();
-    }
 
-    function renderOverlayOntoCanvas(ctx, w, h) {
-      const scale = w / 420;
-      const bottomMargin = Math.round(20 * scale);
-      const fontStack = '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
+      function renderOverlayOntoCanvas(ctx, w, h) {
+        const scale = w / 420;
+        const bottomMargin = Math.round(20 * scale);
+        const fontStack = '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
 
-      if (activeSlideIndex === 1 && selectedPaletteColor) {
-        const pillH = Math.round(42 * scale);
-        const swatchR = Math.round(12 * scale);
-        const gap = Math.round(10 * scale);
-        const padX = Math.round(14 * scale);
-        const pillW = padX * 2 + swatchR * 2 * 5 + gap * 4;
+        if (activeSlideIndex === 1 && selectedPaletteColor) {
+          const pillH = Math.round(42 * scale);
+          const swatchR = Math.round(12 * scale);
+          const gap = Math.round(10 * scale);
+          const padX = Math.round(14 * scale);
+          const pillW = padX * 2 + swatchR * 2 * 5 + gap * 4;
+          const pillX = (w - pillW) / 2;
+          const pillY = h - bottomMargin - pillH;
+
+          ctx.save();
+          drawRoundRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+          ctx.fillStyle = 'rgba(38, 40, 39, 0.9)';
+          ctx.fill();
+          ctx.lineWidth = Math.max(1, 1.2 * scale);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+          ctx.stroke();
+
+          const colors = ['#8c7333', '#d6cfc2', '#2e3130', '#565958', '#9ca19f'];
+          colors.forEach((col, i) => {
+            const cx = pillX + padX + swatchR + i * (swatchR * 2 + gap);
+            const cy = pillY + pillH / 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, swatchR, 0, Math.PI * 2);
+            ctx.fillStyle = col;
+            ctx.fill();
+
+            if (col.toLowerCase() === selectedPaletteColor.toLowerCase()) {
+              ctx.lineWidth = Math.max(2, 2.5 * scale);
+              ctx.strokeStyle = '#ffffff';
+              ctx.stroke();
+            }
+          });
+          ctx.restore();
+          return;
+        }
+
+        if (activeSlideIndex === 2 && hasSelectedRating && ratingValue > 0) {
+          const note = ratingInput.value.trim();
+          const starOuterR = Math.round(11 * scale);
+          const starInnerR = Math.round(4.8 * scale);
+          const starGap = Math.round(6 * scale);
+          const starsTotalW = starOuterR * 2 * 5 + starGap * 4;
+          const noteFontSize = Math.round(13.5 * scale);
+          ctx.font = `600 ${noteFontSize}px ${fontStack}`;
+          const noteText = note ? `"${note}"` : '';
+          const noteW = noteText ? ctx.measureText(noteText).width : 0;
+
+          const padX = Math.round(20 * scale);
+          const padY = Math.round(10 * scale);
+          const rowGap = noteText ? Math.round(4 * scale) : 0;
+          const pillW = Math.min(Math.max(starsTotalW, noteW) + padX * 2, w - Math.round(48 * scale));
+          const pillH = padY * 2 + starOuterR * 2 + (noteText ? rowGap + noteFontSize : 0);
+          const pillX = (w - pillW) / 2;
+          const pillY = h - bottomMargin - pillH;
+          const radius = noteText ? Math.round(24 * scale) : pillH / 2;
+
+          ctx.save();
+          drawRoundRectPath(ctx, pillX, pillY, pillW, pillH, radius);
+          ctx.fillStyle = 'rgba(35, 35, 38, 0.92)';
+          ctx.fill();
+          ctx.lineWidth = Math.max(1, 1.2 * scale);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.stroke();
+
+          const starsStartX = (w - starsTotalW) / 2 + starOuterR;
+          const starsCenterY = pillY + padY + starOuterR;
+          for (let i = 0; i < 5; i++) {
+            const fillFrac = Math.max(0, Math.min(1, ratingValue - i));
+            const cx = starsStartX + i * (starOuterR * 2 + starGap);
+            drawSingleStar(ctx, cx, starsCenterY, starOuterR, starInnerR, fillFrac);
+          }
+
+          if (noteText) {
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const noteY = starsCenterY + starOuterR + rowGap + noteFontSize / 2;
+            ctx.fillText(noteText, w / 2, noteY, pillW - padX * 1.5);
+          }
+          ctx.restore();
+          return;
+        }
+
+        const text = getActiveOverlayText();
+        if (!text) return;
+
+        const fontSize = Math.round(15 * scale);
+        ctx.save();
+        ctx.font = `600 ${fontSize}px ${fontStack}`;
+        const textWidth = ctx.measureText(text).width;
+        const iconPad = (activeSlideIndex === 3 || activeSlideIndex === 4 || activeSlideIndex === 5 || activeSlideIndex === 6)
+          ? Math.round(22 * scale)
+          : 0;
+        const pillW = Math.min(textWidth + Math.round(36 * scale) + iconPad, w - Math.round(48 * scale));
+        const pillH = Math.round(36 * scale);
         const pillX = (w - pillW) / 2;
         const pillY = h - bottomMargin - pillH;
 
-        ctx.save();
         drawRoundRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-        ctx.fillStyle = 'rgba(38, 40, 39, 0.9)';
+        ctx.fillStyle = activeSlideIndex === 0 ? 'rgba(90, 90, 92, 0.92)' : 'rgba(35, 35, 38, 0.9)';
         ctx.fill();
-        ctx.lineWidth = Math.max(1, 1.2 * scale);
+        ctx.lineWidth = Math.max(1, scale);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         ctx.stroke();
 
-        const colors = ['#8c7333', '#d6cfc2', '#2e3130', '#565958', '#9ca19f'];
-        colors.forEach((col, i) => {
-          const cx = pillX + padX + swatchR + i * (swatchR * 2 + gap);
-          const cy = pillY + pillH / 2;
+        let contentCenterX = w / 2;
+        if (activeSlideIndex === 3) {
+          const dotR = Math.round(4.5 * scale);
+          const dotX = pillX + Math.round(15 * scale);
+          const dotY = pillY + pillH / 2;
           ctx.beginPath();
-          ctx.arc(cx, cy, swatchR, 0, Math.PI * 2);
-          ctx.fillStyle = col;
+          ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+          ctx.fillStyle = '#22c55e';
           ctx.fill();
+          contentCenterX += Math.round(6 * scale);
+        } else if (activeSlideIndex === 6) {
+          const pinX = pillX + Math.round(15 * scale);
+          const pinY = pillY + pillH / 2;
+          ctx.beginPath();
+          ctx.arc(pinX, pinY, Math.round(4.5 * scale), 0, Math.PI * 2);
+          ctx.fillStyle = '#98989f';
+          ctx.fill();
+          contentCenterX += Math.round(6 * scale);
+        }
 
-          if (col.toLowerCase() === selectedPaletteColor.toLowerCase()) {
-            ctx.lineWidth = Math.max(2, 2.5 * scale);
-            ctx.strokeStyle = '#ffffff';
-            ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, contentCenterX, pillY + pillH / 2 + 0.5 * scale, pillW - Math.round(24 * scale) - iconPad);
+        ctx.restore();
+      }
+
+      function buildDownloadableDataUrl(baseDataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const w = img.naturalWidth || OUTPUT_SIZE;
+            const h = img.naturalHeight || OUTPUT_SIZE;
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            renderOverlayOntoCanvas(ctx, w, h);
+            const out = canvas.toDataURL('image/jpeg', 0.88);
+            canvas.width = 0;
+            canvas.height = 0;
+            resolve(out);
+          };
+          img.onerror = () => resolve(baseDataUrl);
+          img.src = baseDataUrl;
+        });
+      }
+
+      function bindKeyboardActivate(el, handler) {
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handler(e);
           }
         });
-        ctx.restore();
-        return;
       }
 
-      if (activeSlideIndex === 2 && hasSelectedRating && ratingValue > 0) {
-        const note = ratingInput.value.trim();
-        const starOuterR = Math.round(11 * scale);
-        const starInnerR = Math.round(4.8 * scale);
-        const starGap = Math.round(6 * scale);
-        const starsTotalW = starOuterR * 2 * 5 + starGap * 4;
-        const noteFontSize = Math.round(13.5 * scale);
-        ctx.font = `600 ${noteFontSize}px ${fontStack}`;
-        const noteText = note ? `"${note}"` : '';
-        const noteW = noteText ? ctx.measureText(noteText).width : 0;
-
-        const padX = Math.round(20 * scale);
-        const padY = Math.round(10 * scale);
-        const rowGap = noteText ? Math.round(4 * scale) : 0;
-        const pillW = Math.min(Math.max(starsTotalW, noteW) + padX * 2, w - Math.round(48 * scale));
-        const pillH = padY * 2 + starOuterR * 2 + (noteText ? rowGap + noteFontSize : 0);
-        const pillX = (w - pillW) / 2;
-        const pillY = h - bottomMargin - pillH;
-        const radius = noteText ? Math.round(24 * scale) : pillH / 2;
-
-        ctx.save();
-        drawRoundRectPath(ctx, pillX, pillY, pillW, pillH, radius);
-        ctx.fillStyle = 'rgba(35, 35, 38, 0.92)';
-        ctx.fill();
-        ctx.lineWidth = Math.max(1, 1.2 * scale);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-        ctx.stroke();
-
-        const starsStartX = (w - starsTotalW) / 2 + starOuterR;
-        const starsCenterY = pillY + padY + starOuterR;
-        for (let i = 0; i < 5; i++) {
-          const fillFrac = Math.max(0, Math.min(1, ratingValue - i));
-          const cx = starsStartX + i * (starOuterR * 2 + starGap);
-          drawSingleStar(ctx, cx, starsCenterY, starOuterR, starInnerR, fillFrac);
+      document.addEventListener('contextmenu', (e) => {
+        if (!e.target.closest('input, textarea')) {
+          e.preventDefault();
         }
+      });
 
-        if (noteText) {
-          ctx.fillStyle = '#ffffff';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          const noteY = starsCenterY + starOuterR + rowGap + noteFontSize / 2;
-          ctx.fillText(noteText, w / 2, noteY, pillW - padX * 1.5);
+      document.addEventListener('selectstart', (e) => {
+        if (!e.target.closest('input, textarea')) {
+          e.preventDefault();
         }
-        ctx.restore();
-        return;
-      }
-
-      const text = getActiveOverlayText();
-      if (!text) return;
-
-      const fontSize = Math.round(15 * scale);
-      ctx.save();
-      ctx.font = `600 ${fontSize}px ${fontStack}`;
-      const textWidth = ctx.measureText(text).width;
-      const iconPad = (activeSlideIndex === 3 || activeSlideIndex === 4 || activeSlideIndex === 5 || activeSlideIndex === 6)
-        ? Math.round(22 * scale)
-        : 0;
-      const pillW = Math.min(textWidth + Math.round(36 * scale) + iconPad, w - Math.round(48 * scale));
-      const pillH = Math.round(36 * scale);
-      const pillX = (w - pillW) / 2;
-      const pillY = h - bottomMargin - pillH;
-
-      drawRoundRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-      ctx.fillStyle = activeSlideIndex === 0 ? 'rgba(90, 90, 92, 0.92)' : 'rgba(35, 35, 38, 0.9)';
-      ctx.fill();
-      ctx.lineWidth = Math.max(1, scale);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-      ctx.stroke();
-
-      let contentCenterX = w / 2;
-      if (activeSlideIndex === 3) {
-        const dotR = Math.round(4.5 * scale);
-        const dotX = pillX + Math.round(15 * scale);
-        const dotY = pillY + pillH / 2;
-        ctx.beginPath();
-        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
-        ctx.fillStyle = '#22c55e';
-        ctx.fill();
-        contentCenterX += Math.round(6 * scale);
-      } else if (activeSlideIndex === 6) {
-        const pinX = pillX + Math.round(15 * scale);
-        const pinY = pillY + pillH / 2;
-        ctx.beginPath();
-        ctx.arc(pinX, pinY, Math.round(4.5 * scale), 0, Math.PI * 2);
-        ctx.fillStyle = '#98989f';
-        ctx.fill();
-        contentCenterX += Math.round(6 * scale);
-      }
-
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, contentCenterX, pillY + pillH / 2 + 0.5 * scale, pillW - Math.round(24 * scale) - iconPad);
-      ctx.restore();
-    }
-
-    function buildDownloadableDataUrl(baseDataUrl) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const w = img.naturalWidth || OUTPUT_SIZE;
-          const h = img.naturalHeight || OUTPUT_SIZE;
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          renderOverlayOntoCanvas(ctx, w, h);
-          const out = canvas.toDataURL('image/jpeg', 0.88);
-          canvas.width = 0;
-          canvas.height = 0;
-          resolve(out);
-        };
-        img.onerror = () => resolve(baseDataUrl);
-        img.src = baseDataUrl;
       });
-    }
 
-    document.addEventListener('contextmenu', (e) => {
-      if (!e.target.closest('input, textarea')) {
-        e.preventDefault();
+      function openProfileSheet() {
+        profileSheet.style.transform = 'translate3d(0, 0, 0)';
+        profileSheet.classList.add('open');
+        syncProfileExpandedState();
       }
-    });
 
-    document.addEventListener('selectstart', (e) => {
-      if (!e.target.closest('input, textarea')) {
-        e.preventDefault();
+      function closeProfileSheet() {
+        profileSheet.style.transform = 'translate3d(100%, 0, 0)';
+        profileSheet.classList.remove('open');
+        syncProfileExpandedState();
       }
-    });
 
-    function openProfileSheet() {
-      profileSheet.style.transform = 'translate3d(0, 0, 0)';
-      profileSheet.classList.add('open');
-    }
+      profileBtn.addEventListener('click', openProfileSheet);
+      closeProfileBtn.addEventListener('click', closeProfileSheet);
+      bindKeyboardActivate(closeProfileBtn, closeProfileSheet);
 
-    function closeProfileSheet() {
-      profileSheet.style.transform = 'translate3d(100%, 0, 0)';
-      profileSheet.classList.remove('open');
-    }
+      function updateGuideDots(index) {
+        guideDots.forEach((dot, idx) => {
+          dot.classList.toggle('active', idx === index);
+        });
+      }
 
-    profileBtn.addEventListener('click', openProfileSheet);
-    closeProfileBtn.addEventListener('click', closeProfileSheet);
+      function updatePreviewWidgetSubtitle(idx) {
+        activePreviewWidgetIdx = idx;
+        if (guideWidgetSubtitle && previewWidgetLabels[idx]) {
+          guideWidgetSubtitle.textContent = previewWidgetLabels[idx];
+        }
+      }
 
-    function updateGuideDots(index) {
-      guideDots.forEach((dot, idx) => {
-        dot.classList.toggle('active', idx === index);
+      function openWidgetGuideSheet() {
+        triggerHapticFeedback(0.8);
+        activeGuideStep = 0;
+        activePreviewWidgetIdx = 0;
+        updateGuideDots(0);
+        updatePreviewWidgetSubtitle(0);
+        widgetGuideBackdrop.classList.add('open');
+        widgetGuideSheet.classList.add('open');
+        requestAnimationFrame(() => {
+          widgetGuideTrack.scrollLeft = 0;
+          if (guideWidgetPreviewTrack) guideWidgetPreviewTrack.scrollLeft = 0;
+        });
+      }
+
+      function closeWidgetGuideSheet() {
+        guideConfirmBackdrop.classList.add('hidden');
+        widgetGuideSheet.classList.remove('open');
+        widgetGuideBackdrop.classList.remove('open');
+      }
+
+      openWidgetGuideBtns.forEach((btn) => {
+        btn.addEventListener('click', openWidgetGuideSheet);
       });
-    }
 
-    function updatePreviewWidgetSubtitle(idx) {
-      activePreviewWidgetIdx = idx;
-      if (guideWidgetSubtitle && previewWidgetLabels[idx]) {
-        guideWidgetSubtitle.textContent = previewWidgetLabels[idx];
-      }
-    }
+      closeWidgetGuideBtn.addEventListener('click', closeWidgetGuideSheet);
+      bindKeyboardActivate(closeWidgetGuideBtn, closeWidgetGuideSheet);
+      widgetGuideBackdrop.addEventListener('click', closeWidgetGuideSheet);
 
-    function openWidgetGuideSheet() {
-      triggerHapticFeedback(0.8);
-      activeGuideStep = 0;
-      activePreviewWidgetIdx = 0;
-      updateGuideDots(0);
-      updatePreviewWidgetSubtitle(0);
-      widgetGuideBackdrop.classList.add('open');
-      widgetGuideSheet.classList.add('open');
-      requestAnimationFrame(() => {
-        widgetGuideTrack.scrollLeft = 0;
-        if (guideWidgetPreviewTrack) guideWidgetPreviewTrack.scrollLeft = 0;
-      });
-    }
-
-    function closeWidgetGuideSheet() {
-      guideConfirmBackdrop.classList.add('hidden');
-      widgetGuideSheet.classList.remove('open');
-      widgetGuideBackdrop.classList.remove('open');
-    }
-
-    openWidgetGuideBtns.forEach((btn) => {
-      btn.addEventListener('click', openWidgetGuideSheet);
-    });
-
-    closeWidgetGuideBtn.addEventListener('click', closeWidgetGuideSheet);
-    widgetGuideBackdrop.addEventListener('click', closeWidgetGuideSheet);
-
-    widgetGuideTrack.addEventListener('scroll', () => {
-      const slideWidth = widgetGuideTrack.clientWidth || 1;
-      const idx = Math.round(widgetGuideTrack.scrollLeft / slideWidth);
-      if (idx !== activeGuideStep && idx >= 0 && idx < TOTAL_GUIDE_STEPS) {
-        activeGuideStep = idx;
-        updateGuideDots(idx);
-      }
-    }, { passive: true });
-
-    if (guideWidgetPreviewTrack) {
-      guideWidgetPreviewTrack.addEventListener('scroll', () => {
-        const slideWidth = guideWidgetPreviewTrack.clientWidth || 1;
-        const idx = Math.round(guideWidgetPreviewTrack.scrollLeft / slideWidth);
-        if (idx !== activePreviewWidgetIdx && idx >= 0 && idx < previewWidgetLabels.length) {
-          updatePreviewWidgetSubtitle(idx);
+      widgetGuideTrack.addEventListener('scroll', () => {
+        const slideWidth = widgetGuideTrack.clientWidth || 1;
+        const idx = Math.round(widgetGuideTrack.scrollLeft / slideWidth);
+        if (idx !== activeGuideStep && idx >= 0 && idx < TOTAL_GUIDE_STEPS) {
+          activeGuideStep = idx;
+          updateGuideDots(idx);
         }
       }, { passive: true });
-    }
 
-    if (guideAddWidgetBtn) {
-      guideAddWidgetBtn.addEventListener('click', () => {
+      if (guideWidgetPreviewTrack) {
+        guideWidgetPreviewTrack.addEventListener('scroll', () => {
+          const slideWidth = guideWidgetPreviewTrack.clientWidth || 1;
+          const idx = Math.round(guideWidgetPreviewTrack.scrollLeft / slideWidth);
+          if (idx !== activePreviewWidgetIdx && idx >= 0 && idx < previewWidgetLabels.length) {
+            updatePreviewWidgetSubtitle(idx);
+          }
+        }, { passive: true });
+      }
+
+      if (guideAddWidgetBtn) {
+        guideAddWidgetBtn.addEventListener('click', () => {
+          triggerHapticFeedback(0.85);
+          showToast(`Đã chọn ${previewWidgetLabels[activePreviewWidgetIdx] || 'Tiện ích'}`);
+        });
+      }
+
+      guideDots.forEach((dot) => {
+        dot.addEventListener('click', () => {
+          const idx = parseInt(dot.dataset.guideDot, 10);
+          if (Number.isFinite(idx)) {
+            widgetGuideTrack.scrollTo({ left: idx * widgetGuideTrack.clientWidth, behavior: 'smooth' });
+          }
+        });
+      });
+
+      widgetGuideCta.addEventListener('click', () => {
         triggerHapticFeedback(0.85);
-        showToast(`Đã chọn ${previewWidgetLabels[activePreviewWidgetIdx] || 'Tiện ích'}`);
+        guideConfirmBackdrop.classList.remove('hidden');
       });
-    }
 
-    guideDots.forEach((dot) => {
-      dot.addEventListener('click', () => {
-        const idx = parseInt(dot.dataset.guideDot, 10);
-        if (Number.isFinite(idx)) {
-          widgetGuideTrack.scrollTo({ left: idx * widgetGuideTrack.clientWidth, behavior: 'smooth' });
-        }
-      });
-    });
-
-    widgetGuideCta.addEventListener('click', () => {
-      triggerHapticFeedback(0.85);
-      guideConfirmBackdrop.classList.remove('hidden');
-    });
-
-    guideConfirmCancel.addEventListener('click', () => {
-      guideConfirmBackdrop.classList.add('hidden');
-    });
-
-    guideConfirmSkip.addEventListener('click', () => {
-      triggerHapticFeedback(0.9);
-      closeWidgetGuideSheet();
-      showToast('Đã bỏ qua hướng dẫn tiện ích');
-    });
-
-    guideConfirmBackdrop.addEventListener('click', (e) => {
-      if (e.target === guideConfirmBackdrop) {
+      guideConfirmCancel.addEventListener('click', () => {
         guideConfirmBackdrop.classList.add('hidden');
-      }
-    });
-
-    cornerCircleBtn.addEventListener('click', () => {
-      triggerHapticFeedback(0.8);
-      if (profileSheet.classList.contains('open')) {
-        closeProfileSheet();
-      } else {
-        openProfileSheet();
-      }
-    });
-
-    logoutBtn.addEventListener('click', () => {
-      triggerHapticFeedback(1.0);
-      closeProfileSheet();
-      showToast('Đã đăng xuất');
-    });
-
-    document.querySelectorAll('[data-toast]').forEach((el) => {
-      el.addEventListener('click', () => {
-        showToast(el.dataset.toast);
       });
-    });
 
-    friendsPill.addEventListener('click', () => {
-      showToast('11 người bạn');
-    });
+      guideConfirmSkip.addEventListener('click', () => {
+        triggerHapticFeedback(0.9);
+        closeWidgetGuideSheet();
+        showToast('Đã bỏ qua hướng dẫn tiện ích');
+      });
 
-    captionInput.addEventListener('input', syncCaptionSize);
-    ratingInput.addEventListener('input', syncRatingNoteSize);
-    musicInput.addEventListener('input', syncMusicSize);
-
-    paletteSwatches.forEach((swatch) => {
-      swatch.addEventListener('click', () => {
-        const color = swatch.dataset.color || '';
-        const label = swatch.dataset.label || '';
-        if (selectedPaletteColor === color) {
-          clearPaletteSelection();
-          return;
+      guideConfirmBackdrop.addEventListener('click', (e) => {
+        if (e.target === guideConfirmBackdrop) {
+          guideConfirmBackdrop.classList.add('hidden');
         }
-        selectedPaletteColor = color;
-        selectedPaletteLabel = label;
-        paletteSwatches.forEach(btn => btn.classList.toggle('selected', btn === swatch));
+      });
+
+      cornerCircleBtn.addEventListener('click', () => {
         triggerHapticFeedback(0.8);
-      });
-    });
-
-    shutterBtn.addEventListener('pointerdown', (e) => {
-      if (isShutterPressing) return;
-      isShutterPressing = true;
-      shutterPointerId = e.pointerId;
-      shutterBtn.setPointerCapture(e.pointerId);
-      shutterBtn.classList.add('pressing');
-      triggerHapticFeedback(1.0);
-    });
-
-    shutterBtn.addEventListener('pointerup', (e) => {
-      if (!isShutterPressing || e.pointerId !== shutterPointerId) return;
-      isShutterPressing = false;
-      shutterPointerId = null;
-      shutterBtn.classList.remove('pressing');
-      triggerHapticFeedback(1.1);
-      capturePhoto();
-    });
-
-    shutterBtn.addEventListener('pointercancel', () => {
-      isShutterPressing = false;
-      shutterPointerId = null;
-      shutterBtn.classList.remove('pressing');
-    });
-
-    flipBtn.addEventListener('click', () => {
-      facingMode = facingMode === 'user' ? 'environment' : 'user';
-      zoomLevel = 1;
-      syncZoomBadge();
-      startCamera();
-    });
-
-    flashBtn.addEventListener('click', handleFlashToggle);
-    zoomBtn.addEventListener('click', handleZoomToggle);
-
-    galleryBtn.addEventListener('click', () => galleryInput.click());
-
-    galleryInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const squared = await normalizeUploadedImage(ev.target.result);
-        enterPreviewMode(squared);
-      };
-      reader.readAsDataURL(file);
-      e.target.value = '';
-    });
-
-    cancelBtn.addEventListener('click', exitPreviewMode);
-
-    aaBtn.addEventListener('click', () => {
-      const nextIndex = (activeSlideIndex + 1) % TOTAL_SLIDES;
-      const slideWidth = overlayTrack.clientWidth;
-      overlayTrack.scrollTo({ left: nextIndex * slideWidth, behavior: 'smooth' });
-    });
-
-    overlayTrack.addEventListener('scroll', () => {
-      const slideWidth = overlayTrack.clientWidth || 1;
-      const index = Math.round(overlayTrack.scrollLeft / slideWidth);
-      if (index !== activeSlideIndex && index >= 0 && index < TOTAL_SLIDES) {
-        activeSlideIndex = index;
-        updateDots(index);
-        if (index === 3) {
-          triggerMusicSpinner();
-        } else if (index === 4) {
-          requestWeatherWithPermission(false);
+        if (profileSheet.classList.contains('open')) {
+          closeProfileSheet();
+        } else {
+          openProfileSheet();
         }
-      }
-    }, { passive: true });
-
-    dots.forEach(dot => {
-      dot.addEventListener('click', () => {
-        const idx = parseInt(dot.dataset.dot, 10);
-        overlayTrack.scrollTo({ left: idx * overlayTrack.clientWidth, behavior: 'smooth' });
       });
-    });
 
-    widgetWeather.addEventListener('click', () => {
-      requestWeatherWithPermission(true);
-    });
-
-    widgetLocation.addEventListener('click', openLocationSheet);
-    locationSheetClose.addEventListener('click', closeLocationSheet);
-
-    locationSheetInput.addEventListener('input', (e) => {
-      const val = e.currentTarget.value;
-      clearTimeout(searchDebounceTimer);
-      searchDebounceTimer = setTimeout(() => {
-        searchPlacesFromApi(val);
-      }, 250);
-    });
-
-    locationGpsBtn.addEventListener('click', () => {
-      if (!navigator.geolocation) return;
-      locationTextEl.textContent = 'Đang lấy GPS...';
-      closeLocationSheet();
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = Number(pos.coords.latitude.toFixed(4));
-          const lon = Number(pos.coords.longitude.toFixed(4));
-          currentCoords = { lat, lon };
-          selectedLocationLabel = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-          locationTextEl.textContent = selectedLocationLabel;
-          await fetchRealWeather(currentCoords);
-        },
-        () => {
-          locationTextEl.textContent = selectedLocationLabel || 'Thêm vị trí';
-        },
-        { timeout: 6000 }
-      );
-    });
-
-    let isRatingPointerDown = false;
-    let ratingRafId = null;
-    let pendingRatingX = 0;
-
-    function scheduleRatingUpdate(clientX) {
-      pendingRatingX = clientX;
-      if (ratingRafId) return;
-      ratingRafId = requestAnimationFrame(() => {
-        ratingRafId = null;
-        renderRatingStars(computeRatingFromPointer(pendingRatingX), true, true);
+      logoutBtn.addEventListener('click', () => {
+        triggerHapticFeedback(1.0);
+        closeProfileSheet();
+        showToast('Đã đăng xuất');
       });
-    }
 
-    starsBar.addEventListener('pointerdown', (e) => {
-      isRatingPointerDown = true;
-      starsBar.setPointerCapture(e.pointerId);
-      renderRatingStars(computeRatingFromPointer(e.clientX), true, true);
-    });
+      document.querySelectorAll('[data-toast]').forEach((el) => {
+        el.addEventListener('click', () => {
+          showToast(el.dataset.toast);
+        });
+      });
 
-    starsBar.addEventListener('pointermove', (e) => {
-      if (!isRatingPointerDown) return;
-      scheduleRatingUpdate(e.clientX);
-    });
+      friendsPill.addEventListener('click', () => {
+        showToast('11 người bạn');
+      });
 
-    starsBar.addEventListener('pointerup', (e) => {
-      if (!isRatingPointerDown) return;
-      isRatingPointerDown = false;
-      if (ratingRafId) {
-        cancelAnimationFrame(ratingRafId);
-        ratingRafId = null;
-      }
-      renderRatingStars(computeRatingFromPointer(e.clientX), true, true);
-    });
+      captionInput.addEventListener('input', syncCaptionSize);
+      ratingInput.addEventListener('input', syncRatingNoteSize);
+      musicInput.addEventListener('input', syncMusicSize);
 
-    starsBar.addEventListener('pointercancel', () => {
-      isRatingPointerDown = false;
-      if (ratingRafId) {
-        cancelAnimationFrame(ratingRafId);
-        ratingRafId = null;
-      }
-    });
+      paletteSwatches.forEach((swatch) => {
+        swatch.addEventListener('click', () => {
+          const color = swatch.dataset.color || '';
+          const label = swatch.dataset.label || '';
+          if (selectedPaletteColor === color) {
+            clearPaletteSelection();
+            return;
+          }
+          selectedPaletteColor = color;
+          selectedPaletteLabel = label;
+          paletteSwatches.forEach(btn => {
+            const isSel = btn === swatch;
+            btn.classList.toggle('selected', isSel);
+            btn.setAttribute('aria-pressed', String(isSel));
+          });
+          triggerHapticFeedback(0.8);
+        });
+      });
 
-    downloadBtn.addEventListener('click', async () => {
-      if (!capturedDataUrl) return;
-      const finalUrl = await buildDownloadableDataUrl(capturedDataUrl);
-      const a = document.createElement('a');
-      a.href = finalUrl;
-      a.download = `locket_${Date.now()}.jpg`;
-      a.click();
-    });
+      shutterBtn.addEventListener('pointerdown', (e) => {
+        if (isShutterPressing) return;
+        isShutterPressing = true;
+        shutterPointerId = e.pointerId;
+        try {
+          shutterBtn.setPointerCapture(e.pointerId);
+        } catch {}
+        shutterBtn.classList.add('pressing');
+        triggerHapticFeedback(1.0);
+      });
 
-    sendBtn.addEventListener('click', () => {
-      if (!capturedDataUrl) return;
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const dateStr = formatVietnameseDate(now);
-      const nextPhotos = [
-        {
-          id: Date.now(),
-          image: capturedDataUrl,
-          caption: getActiveOverlayText(),
-          recipient: selectedRecipient,
-          author: 'Bạn',
-          dateText: dateStr,
-          time: timeStr
-        },
-        ...photos
-      ];
-      photos = savePhotosSafely(nextPhotos);
-      renderHistory();
-      exitPreviewMode();
-    });
+      shutterBtn.addEventListener('pointerup', (e) => {
+        if (!isShutterPressing || e.pointerId !== shutterPointerId) return;
+        isShutterPressing = false;
+        shutterPointerId = null;
+        try {
+          if (shutterBtn.hasPointerCapture(e.pointerId)) {
+            shutterBtn.releasePointerCapture(e.pointerId);
+          }
+        } catch {}
+        shutterBtn.classList.remove('pressing');
+        triggerHapticFeedback(1.1);
+        capturePhoto();
+      });
 
-    function openHistorySheet() {
-      renderHistory();
-      historyFeed.scrollTop = 0;
-      historySheet.style.transform = 'translate3d(0, 0, 0)';
-      historySheet.classList.add('open');
-    }
+      shutterBtn.addEventListener('pointercancel', () => {
+        isShutterPressing = false;
+        shutterPointerId = null;
+        shutterBtn.classList.remove('pressing');
+      });
 
-    function closeHistorySheet() {
-      historySheet.style.transform = 'translate3d(0, 100%, 0)';
-      historySheet.classList.remove('open');
-    }
-
-    historyTrigger.addEventListener('click', openHistorySheet);
-    openHistoryTopBtn.addEventListener('click', openHistorySheet);
-    historySheetDragHandle.addEventListener('click', closeHistorySheet);
-    historyHomeGoldBtn.addEventListener('click', closeHistorySheet);
-
-    let sheetStartY = 0;
-    let sheetCurrentY = 0;
-    let isDraggingSheet = false;
-    let sheetRafId = null;
-
-    function applySheetTransform() {
-      sheetRafId = null;
-      historySheet.style.transform = `translate3d(0, ${sheetCurrentY}px, 0)`;
-    }
-
-    historySheet.addEventListener('touchstart', (e) => {
-      sheetStartY = e.touches[0].clientY;
-      sheetCurrentY = 0;
-      isDraggingSheet = false;
-    }, { passive: true });
-
-    historySheet.addEventListener('touchmove', (e) => {
-      const dy = e.touches[0].clientY - sheetStartY;
-      if (dy > 6 && historyFeed.scrollTop <= 0) {
-        if (!isDraggingSheet) {
-          isDraggingSheet = true;
-          historySheet.style.transition = 'none';
-        }
-        sheetCurrentY = dy - 6;
-        if (!sheetRafId) sheetRafId = requestAnimationFrame(applySheetTransform);
-      } else if (isDraggingSheet && dy <= 6) {
-        sheetCurrentY = 0;
-        if (!sheetRafId) sheetRafId = requestAnimationFrame(applySheetTransform);
-      }
-    }, { passive: true });
-
-    historySheet.addEventListener('touchend', () => {
-      if (!isDraggingSheet) return;
-      isDraggingSheet = false;
-      if (sheetRafId) {
-        cancelAnimationFrame(sheetRafId);
-        sheetRafId = null;
-      }
-      historySheet.style.transition = 'transform 0.26s cubic-bezier(0.22, 1, 0.36, 1)';
-      if (sheetCurrentY > 85) {
-        closeHistorySheet();
-      } else {
-        historySheet.style.transform = 'translate3d(0, 0, 0)';
-      }
-      sheetCurrentY = 0;
-    }, { passive: true });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        stopCamera();
-      } else if (previewImg.classList.contains('hidden')) {
+      flipBtn.addEventListener('click', () => {
+        facingMode = facingMode === 'user' ? 'environment' : 'user';
+        zoomLevel = 1;
+        syncZoomBadge();
         startCamera();
-      }
-    });
+      });
 
-    updateTimeWidget();
-    setInterval(updateTimeWidget, 1000);
-    renderRatingStars(ratingValue, false, false);
-    syncCaptionSize();
-    syncRatingNoteSize();
-    syncMusicSize();
-    renderHistory();
-    startCamera();
+      flashBtn.addEventListener('click', handleFlashToggle);
+      zoomBtn.addEventListener('click', handleZoomToggle);
+
+      galleryBtn.addEventListener('click', () => galleryInput.click());
+
+      galleryInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          const squared = await normalizeUploadedImage(ev.target.result);
+          enterPreviewMode(squared);
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      });
+
+      cancelBtn.addEventListener('click', exitPreviewMode);
+
+      aaBtn.addEventListener('click', () => {
+        const nextIndex = (activeSlideIndex + 1) % TOTAL_SLIDES;
+        const slideWidth = overlayTrack.clientWidth;
+        overlayTrack.scrollTo({ left: nextIndex * slideWidth, behavior: 'smooth' });
+      });
+
+      overlayTrack.addEventListener('scroll', () => {
+        const slideWidth = overlayTrack.clientWidth || 1;
+        const index = Math.round(overlayTrack.scrollLeft / slideWidth);
+        if (index !== activeSlideIndex && index >= 0 && index < TOTAL_SLIDES) {
+          activeSlideIndex = index;
+          updateDots(index);
+          if (index === 3) {
+            triggerMusicSpinner();
+          } else if (index === 4) {
+            requestWeatherWithPermission(false);
+          }
+        }
+      }, { passive: true });
+
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          const idx = parseInt(dot.dataset.dot, 10);
+          overlayTrack.scrollTo({ left: idx * overlayTrack.clientWidth, behavior: 'smooth' });
+        });
+      });
+
+      widgetWeather.addEventListener('click', () => {
+        requestWeatherWithPermission(true);
+      });
+
+      widgetLocation.addEventListener('click', openLocationSheet);
+      locationSheetClose.addEventListener('click', closeLocationSheet);
+      locationSheetDragHandle.addEventListener('click', closeLocationSheet);
+      bindKeyboardActivate(locationSheetDragHandle, closeLocationSheet);
+
+      locationSheet.addEventListener('click', (e) => {
+        if (e.target === locationSheet) {
+          closeLocationSheet();
+        }
+      });
+
+      locationSheetInput.addEventListener('input', (e) => {
+        const val = e.currentTarget.value;
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+          searchPlacesFromApi(val);
+        }, 250);
+      });
+
+      locationGpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) return;
+        locationTextEl.textContent = 'Đang lấy GPS...';
+        closeLocationSheet();
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = Number(pos.coords.latitude.toFixed(4));
+            const lon = Number(pos.coords.longitude.toFixed(4));
+            currentCoords = { lat, lon };
+            selectedLocationLabel = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+            locationTextEl.textContent = selectedLocationLabel;
+            await fetchRealWeather(currentCoords);
+          },
+          () => {
+            locationTextEl.textContent = selectedLocationLabel || 'Thêm vị trí';
+          },
+          { timeout: 6000 }
+        );
+      });
+
+      let isRatingPointerDown = false;
+      let ratingRafId = null;
+      let pendingRatingX = 0;
+
+      function scheduleRatingUpdate(clientX) {
+        pendingRatingX = clientX;
+        if (ratingRafId) return;
+        ratingRafId = requestAnimationFrame(() => {
+          ratingRafId = null;
+          renderRatingStars(computeRatingFromPointer(pendingRatingX), true, true);
+        });
+      }
+
+      starsBar.addEventListener('pointerdown', (e) => {
+        isRatingPointerDown = true;
+        try {
+          starsBar.setPointerCapture(e.pointerId);
+        } catch {}
+        renderRatingStars(computeRatingFromPointer(e.clientX), true, true);
+      });
+
+      starsBar.addEventListener('pointermove', (e) => {
+        if (!isRatingPointerDown) return;
+        scheduleRatingUpdate(e.clientX);
+      });
+
+      starsBar.addEventListener('pointerup', (e) => {
+        if (!isRatingPointerDown) return;
+        isRatingPointerDown = false;
+        try {
+          if (starsBar.hasPointerCapture(e.pointerId)) {
+            starsBar.releasePointerCapture(e.pointerId);
+          }
+        } catch {}
+        if (ratingRafId) {
+          cancelAnimationFrame(ratingRafId);
+          ratingRafId = null;
+        }
+        renderRatingStars(computeRatingFromPointer(e.clientX), true, true);
+      });
+
+      starsBar.addEventListener('pointercancel', () => {
+        isRatingPointerDown = false;
+        if (ratingRafId) {
+          cancelAnimationFrame(ratingRafId);
+          ratingRafId = null;
+        }
+      });
+
+      downloadBtn.addEventListener('click', async () => {
+        if (!capturedDataUrl) return;
+        const finalUrl = await buildDownloadableDataUrl(capturedDataUrl);
+        const a = document.createElement('a');
+        a.href = finalUrl;
+        a.download = `locket_${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+
+      sendBtn.addEventListener('click', () => {
+        if (!capturedDataUrl) return;
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const dateStr = formatVietnameseDate(now);
+        const nextPhotos = [
+          {
+            id: Date.now(),
+            image: capturedDataUrl,
+            caption: getActiveOverlayText(),
+            recipient: selectedRecipient,
+            author: 'Bạn',
+            dateText: dateStr,
+            time: timeStr
+          },
+          ...photos
+        ];
+        photos = savePhotosSafely(nextPhotos);
+        renderHistory();
+        exitPreviewMode();
+        showToast('Đã gửi ảnh');
+      });
+
+      function openHistorySheet() {
+        renderHistory();
+        historyFeed.scrollTop = 0;
+        historySheet.style.transform = 'translate3d(0, 0, 0)';
+        historySheet.classList.add('open');
+      }
+
+      function closeHistorySheet() {
+        historySheet.style.transform = 'translate3d(0, 100%, 0)';
+        historySheet.classList.remove('open');
+      }
+
+      historyTrigger.addEventListener('click', openHistorySheet);
+      openHistoryTopBtn.addEventListener('click', openHistorySheet);
+      historySheetDragHandle.addEventListener('click', closeHistorySheet);
+      bindKeyboardActivate(historySheetDragHandle, closeHistorySheet);
+      historyHomeGoldBtn.addEventListener('click', closeHistorySheet);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!guideConfirmBackdrop.classList.contains('hidden')) {
+          guideConfirmBackdrop.classList.add('hidden');
+        } else if (widgetGuideSheet.classList.contains('open')) {
+          closeWidgetGuideSheet();
+        } else if (!locationSheet.classList.contains('hidden')) {
+          closeLocationSheet();
+        } else if (historySheet.classList.contains('open')) {
+          closeHistorySheet();
+        } else if (profileSheet.classList.contains('open')) {
+          closeProfileSheet();
+        }
+      });
+
+      let sheetStartY = 0;
+      let sheetCurrentY = 0;
+      let isDraggingSheet = false;
+      let sheetRafId = null;
+
+      function applySheetTransform() {
+        sheetRafId = null;
+        historySheet.style.transform = `translate3d(0, ${sheetCurrentY}px, 0)`;
+      }
+
+      historySheet.addEventListener('touchstart', (e) => {
+        sheetStartY = e.touches[0].clientY;
+        sheetCurrentY = 0;
+        isDraggingSheet = false;
+      }, { passive: true });
+
+      historySheet.addEventListener('touchmove', (e) => {
+        const dy = e.touches[0].clientY - sheetStartY;
+        if (dy > 6 && historyFeed.scrollTop <= 0) {
+          if (!isDraggingSheet) {
+            isDraggingSheet = true;
+            historySheet.style.transition = 'none';
+          }
+          sheetCurrentY = dy - 6;
+          if (!sheetRafId) sheetRafId = requestAnimationFrame(applySheetTransform);
+        } else if (isDraggingSheet && dy <= 6) {
+          sheetCurrentY = 0;
+          if (!sheetRafId) sheetRafId = requestAnimationFrame(applySheetTransform);
+        }
+      }, { passive: true });
+
+      historySheet.addEventListener('touchend', () => {
+        if (!isDraggingSheet) return;
+        isDraggingSheet = false;
+        if (sheetRafId) {
+          cancelAnimationFrame(sheetRafId);
+          sheetRafId = null;
+        }
+        historySheet.style.transition = 'transform 0.26s cubic-bezier(0.22, 1, 0.36, 1)';
+        if (sheetCurrentY > 85) {
+          closeHistorySheet();
+        } else {
+          historySheet.style.transform = 'translate3d(0, 0, 0)';
+        }
+        sheetCurrentY = 0;
+      }, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopCamera();
+        } else if (previewImg.classList.contains('hidden')) {
+          startCamera();
+        }
+      });
+
+      window.addEventListener('beforeunload', () => {
+        stopCamera();
+        clearInterval(clockIntervalId);
+        clearTimeout(toastTimer);
+        clearTimeout(musicLoadingTimer);
+        clearTimeout(searchDebounceTimer);
+        if (ratingRafId) cancelAnimationFrame(ratingRafId);
+        if (sheetRafId) cancelAnimationFrame(sheetRafId);
+        if (activePlaceSearchController) activePlaceSearchController.abort();
+        if (activeWeatherController) activeWeatherController.abort();
+        if (audioCtx && typeof audioCtx.close === 'function') {
+          audioCtx.close().catch(() => {});
+        }
+      });
+
+      updateTimeWidget();
+      clockIntervalId = setInterval(updateTimeWidget, 1000);
+      renderRatingStars(ratingValue, false, false);
+      syncCaptionSize();
+      syncRatingNoteSize();
+      syncMusicSize();
+      renderHistory();
+      startCamera();
+    })();
   </script>
 </body>
 </html>
+
